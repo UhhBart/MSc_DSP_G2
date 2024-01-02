@@ -24,6 +24,8 @@ from shapely.wkt import loads
 class GetWeather:
     def __init__(
         self,
+        grid_path,
+        samples_path,
         num_splits = 10,
         sleep_time = 60
     ):
@@ -32,20 +34,23 @@ class GetWeather:
 
         self.openmeteo = None
 
+        self.grid_df = pd.read_csv(grid_path, sep=",", encoding="utf-8")
+        self.negative_samples = pd.read_csv(samples_path, sep=",", encoding="utf-8")
+
+
+    import time
 
     def add_weather_data(
         self,
-        grid_df,
-        negative_samples
     ):
-        grid_df['geometry'] = grid_df['geometry'].apply(lambda x: loads(x))
-        grids_gdf = gpd.GeoDataFrame(grid_df, geometry='geometry')
+        self.grid_df['geometry'] = self.grid_df['geometry'].apply(lambda x: loads(x))
+        grids_gdf = gpd.GeoDataFrame(self.grid_df, geometry='geometry')
 
         grids_gdf['centroid'] = grids_gdf['geometry'].centroid
         grids_gdf['middle_lat'] = grids_gdf['centroid'].apply(lambda point: point.y)
         grids_gdf['middle_lon'] = grids_gdf['centroid'].apply(lambda point: point.x)
 
-        negative_samples = negative_samples.merge(grids_gdf[['middle_lat', 'middle_lon']], left_on='grid_id', right_index=True)
+        negative_samples = self.negative_samples.merge(grids_gdf[['middle_lat', 'middle_lon']], left_on='grid_id', right_index=True)
 
         negative_samples.rename(columns={'middle_lat': 'LAT', 'middle_lon': 'LON'}, inplace=True)
         columns_order = ['Date', 'grid_id', 'LAT', 'LON'] + [col for col in negative_samples.columns if col not in ['Date', 'grid_id', 'LAT', 'LON']]
@@ -57,17 +62,19 @@ class GetWeather:
         self.get_api_connection()
 
         # split data into num_splits
+        # num_splits = (len(negative_samples) // 300) + 1
         df_splits = np.array_split(negative_samples, self.num_splits)
-
+        print(f"Splitting data in {len(df_splits)}")
         # append weather data
         splits = []
         for i, df_split in enumerate(df_splits):
-            print(f"Getting data for subsplit {i}")
+            start = time.time()
+            print(f"Getting data for subsplit {i}, length is {len(df_split)}")
             splits.append(self.get_weather_for_sub(df_split))
-            
+            print(f"Took {time.time()-start} seconds")
             if i < len(df_splits) - 1:
-                print("Waiting for one minute...")
-                time.sleep(60) 
+                print(f"Waiting for {self.sleep_time} seconds...")
+                time.sleep(self.sleep_time) 
 
         negative_samples_with_weather = pd.concat(splits, axis=1)
 
@@ -75,9 +82,9 @@ class GetWeather:
 
     def get_api_connection(self):
         # Setup the Open-Meteo API client with cache and retry on error
-        cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
-        retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-        self.openmeteo = openmeteo_requests.Client(session = retry_session)
+        self.cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
+        self.retry_session = retry(self.cache_session, retries = 5, backoff_factor = 0.2)
+        self.openmeteo = openmeteo_requests.Client(session = self.retry_session)
 
     def get_weather_for_sub(
         self,
