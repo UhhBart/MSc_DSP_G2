@@ -5,6 +5,7 @@ import seaborn as sns
 import geopandas as gpd
 import regex as re
 import json
+import os
 import random
 from pathlib import Path
 from tqdm import tqdm
@@ -12,10 +13,8 @@ from geopy.geocoders import Nominatim
 from shapely.geometry import Polygon, Point
 
 from GetWeather import GetWeather
-
-
 DATA_DIR = Path("data_bomen")
-INCIDENT_DATA_PATH = DATA_DIR / 'Stormdata & FireStations geadresseerd.csv'
+INCIDENT_DATA_PATH = DATA_DIR / 'Incidenten_oorspronkelijk_volledig.csv'
 TREE_DATA_PATH =  DATA_DIR / "BOMEN_DATA.csv"
 TREE_DATA_WITH_ZIP_PATH = DATA_DIR / "BOMEN_DATA_WITH_ZIP.csv"
 ZIPCODE_JSON_PATH = DATA_DIR / "zipcodes_boxes.json"
@@ -339,9 +338,10 @@ def create_save_negatives(
     return negatives
 
 def main():
+    os.chdir(Path(__file__).parent)
     # read storm_data
     incident_df = pd.read_csv(INCIDENT_DATA_PATH, sep=",", encoding="utf-8")
-    incident_df = incident_df.drop(['Unnamed: 0'], axis=1)
+    # incident_df = incident_df.drop(['Unnamed: 0'], axis=1)
     incident_df = incident_df.set_index('Incident_ID')
 
     # create datasets

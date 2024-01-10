@@ -68,6 +68,7 @@ class GetWeather:
         # append weather data
         splits = []
         for i, df_split in enumerate(df_splits):
+            self.get_api_connection()
             start = time.time()
             print(f"Getting data for subsplit {i}, length is {len(df_split)}")
             splits.append(self.get_weather_for_sub(df_split))
@@ -75,8 +76,11 @@ class GetWeather:
             if i < len(df_splits) - 1:
                 print(f"Waiting for {self.sleep_time} seconds...")
                 time.sleep(self.sleep_time) 
+            if i == (len(df_splits) // 2):
+                print("Sleeping for an hour")
+                time.sleep(3600)
 
-        negative_samples_with_weather = pd.concat(splits, axis=1)
+        negative_samples_with_weather = pd.concat(splits, axis=0)
 
         return negative_samples_with_weather
 
