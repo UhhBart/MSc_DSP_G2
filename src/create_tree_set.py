@@ -13,6 +13,9 @@ from geopy.geocoders import Nominatim
 from shapely.geometry import Polygon, Point
 
 from GetWeather import GetWeather
+from GetNegatives import NegativeSampler
+
+
 DATA_DIR = Path("data_bomen")
 INCIDENT_DATA_PATH = DATA_DIR / 'Incidenten_oorspronkelijk_volledig.csv'
 TREE_DATA_PATH =  DATA_DIR / "BOMEN_DATA.csv"
@@ -183,8 +186,8 @@ def create_tree_incident_gdf(incidents_weather_df, trees, grid_gdf):
     incident_gdf = gpd.sjoin(incident_gdf, grid_gdf, how="left", op="within")
 
     #clean up gdf
-    tree_gdf = tree_gdf.rename(columns={"index_right" : "grid_id", "geometry" : "location"})
-    incident_gdf = incident_gdf.rename(columns={"index_right" : "grid_id", "geometry" : "location"})
+    tree_gdf = tree_gdf.rename(columns={"geometry" : "location"})
+    incident_gdf = incident_gdf.rename(columns={"geometry" : "location"})
 
     return tree_gdf, incident_gdf
 
@@ -265,7 +268,7 @@ def enrich_grid_df(
     tree_gdf
 ):
     for i in grid_gdf.index:
-        tree_sub_df = tree_gdf[tree_gdf.grid_id == i]
+        tree_sub_df = tree_gdf[tree_gdf['grid_id'] == i]
         if len(tree_sub_df)>0:
             # Compute and add averages for height, diameter and year
             grid_gdf.at[i, "avg_height"] = convert_cat_to_avg(tree_sub_df.boomhoogte.values)
@@ -288,11 +291,9 @@ def save_data(tree_gdf, incident_gdf, grid_gdf):
     # clean and save data
     grid_gdf = grid_gdf.fillna(0)
     grid_gdf[grid_gdf.has_tree == True]
-    grid_gdf['grid_id'] = grid_gdf.index
     grid_gdf.to_csv(GRID_DATA_PATH, sep=",", encoding="utf-8", index=False)
 
 def create_save_positives(incident_gdf, tree_gdf, grid_gdf):
-    incident_gdf.Date = pd.to_datetime(incident_gdf.Date)
     # Pick necessary columns
     incident_sub_gdf = incident_gdf[RF_INCIDENT_COLUMNS]
 
@@ -338,7 +339,7 @@ def create_save_negatives(
     return negatives
 
 def main():
-    os.chdir(Path(__file__).parent)
+    # os.chdir(Path(__file__).parent)
     # read storm_data
     incident_df = pd.read_csv(INCIDENT_DATA_PATH, sep=",", encoding="utf-8")
     # incident_df = incident_df.drop(['Unnamed: 0'], axis=1)
@@ -347,13 +348,15 @@ def main():
     # create datasets
     tree_df = pd.read_csv(TREE_DATA_PATH, sep=",", encoding="utf-8")
     incidents_weather_df = pd.read_csv(INCIDENTS_WEATHER_PATH, sep=",", encoding="utf-8")
-    grid_gdf = create_grid_gdf()
+    # grid_gdf = create_grid_gdf()
+    grid_df = pd.read_csv("final_data/grids/grid_new.csv", sep=",", encoding="utf-8")
+    grid_gdf = gpd.GeoDataFrame(grid_df, geometry=gpd.GeoSeries.from_wkt(grid_df['geometry']), crs="EPSG:4326")
 
     # Filter on areas in scope
     incidents_weather_df = incidents_weather_df[~incidents_weather_df.Service_Area.isin(SERVICE_AREAS_OUT_OF_SCOPE)]
 
     df_tree_incidents = incident_df[incident_df["Damage_Type"]=="Tree"]
-    
+
     tree_gdf, incident_gdf = create_tree_incident_gdf(incidents_weather_df=incidents_weather_df, trees=tree_df, grid_gdf=grid_gdf)
 
     #rename categories in new col, in place so only run once
@@ -365,19 +368,21 @@ def main():
 
     grid_gdf, tree_gdf = enrich_grid_df(grid_gdf=grid_gdf, tree_gdf=tree_gdf)
 
+    #convert to datetime
+    incident_gdf.Date = pd.to_datetime(incident_gdf.Date)
+    incidents_weather_df.Date = pd.to_datetime(incident_gdf.Date)
+
     # save data
     save_data(tree_gdf=tree_gdf, incident_gdf=incident_gdf, grid_gdf=grid_gdf)
-
     positive_samples = create_save_positives(incident_gdf=incident_gdf, tree_gdf=tree_gdf, grid_gdf=grid_gdf)
-    negative_samples = create_save_negatives(positives=positive_samples, incidents=incident_gdf, grid=grid_gdf)
+    # negative_samples = create_save_negatives(positives=positive_samples, incidents=incident_gdf, grid=grid_gdf)
+    neg_sampler = NegativeSampler(has_column='has_tree')
+    negative_samples = neg_sampler.sample_negatives(incidents_weather_df, positive_samples, grid_gdf)
+
+    negative_samples.to_csv("test_neg_samples", sep=",", encoding="utf-8")
 
     weather_getter = GetWeather(grid_path=GRID_DATA_PATH, samples_path=NEGATIVE_SAMPLES_PATH, sleep_time=90)  
     negative_samples = weather_getter.add_weather_data()
-
-
-
-
-
 
 if __name__ == "__main__":
     main()

@@ -29,9 +29,10 @@ RF_GRID_COLUMNS = [
 class NegativeSampler():
     def __init__(
         self,
+        has_column,
         window = 5
-    
-    ) -> None:
+    ):
+        self.has_column = has_column
         self.window = window
 
     def verify_sample(
@@ -42,7 +43,8 @@ class NegativeSampler():
     ):
         start_date = date - pd.DateOffset(days=self.window)
         end_date = date + pd.DateOffset(days=self.window)
-
+        print(type(start_date))
+        print(type(incidents['Date']))
         grids = incidents[(incidents['Date'] >= start_date) & (incidents['Date'] <= end_date)].values
 
         return False if grid_id not in grids else True
@@ -53,13 +55,15 @@ class NegativeSampler():
         positives,
         grid
     ):
-        grids_with_trees = list(grid[grid.has_tree == True].grid_id.values)
+        grids_with_trees = list(grid[grid[self.has_column] == True].grid_id.values)
         negatives = positives[['Date', 'Hour']]
         negatives[RF_GRID_COLUMNS] = None
-
+        # negatives.to_datetime('Date')
+        print(f"types")
+        print(incidents.dtypes)
         for i, row in negatives.iterrows():
             random_grid = random.sample(grids_with_trees, 1)[0]
-            while(self.verify_samples(incidents, random_grid, row.Date)):
+            while(self.verify_sample(incidents, random_grid, row.Date)):
                 random_grid = random.sample(grids_with_trees, 1)[0]
             grid_data = grid[grid.grid_id == random_grid][RF_GRID_COLUMNS].reset_index(drop=True)
             negatives.loc[i, RF_GRID_COLUMNS] = grid_data.iloc[0]
