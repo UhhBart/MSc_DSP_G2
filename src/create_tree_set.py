@@ -17,6 +17,7 @@ from GetNegatives import NegativeSampler
 
 
 DATA_DIR = Path("data_bomen")
+FINAL_DATA_DIR = Path("final_data")
 INCIDENT_DATA_PATH = DATA_DIR / 'Incidenten_oorspronkelijk_volledig.csv'
 TREE_DATA_PATH =  DATA_DIR / "BOMEN_DATA.csv"
 TREE_DATA_WITH_ZIP_PATH = DATA_DIR / "BOMEN_DATA_WITH_ZIP.csv"
@@ -24,7 +25,7 @@ ZIPCODE_JSON_PATH = DATA_DIR / "zipcodes_boxes.json"
 
 GRID_SIZE = 200     ## GRID SIZE IN METERS
 TREE_DATA_CLEAN_PATH = DATA_DIR / f"tree_geo_data_clean_{str(GRID_SIZE)}.csv"
-GRID_DATA_PATH = DATA_DIR / f"grid_enriched_{GRID_SIZE}.csv"
+GRID_DATA_PATH = DATA_DIR / f"grid_enriched_{GRID_SIZE}_new.csv"
 INCIDENTS_WEATHER_PATH = DATA_DIR / "incidents_weather.csv"
 INCIDENTS_WEATHER_GEO_PATH = DATA_DIR / f"incidents_weather_geo_{GRID_SIZE}.csv"
 
@@ -288,10 +289,10 @@ def save_data(tree_gdf, incident_gdf, grid_gdf):
     tree_gdf.to_csv(TREE_DATA_CLEAN_PATH, sep=",", encoding="utf-8", index=False)
     incident_gdf.to_csv(INCIDENTS_WEATHER_GEO_PATH, sep=",", encoding="utf-8", index=False)
 
-    # # clean and save data
-    # grid_gdf = grid_gdf.fillna(0)
-    # grid_gdf[grid_gdf.has_tree == True]
-    # grid_gdf.to_csv(GRID_DATA_PATH, sep=",", encoding="utf-8", index=False)
+    # clean and save data
+    grid_gdf = grid_gdf.fillna(0)
+    grid_gdf[grid_gdf.has_tree == True]
+    grid_gdf.to_csv(GRID_DATA_PATH, sep=",", encoding="utf-8", index=False)
 
 def create_save_positives(incident_gdf, tree_gdf, grid_gdf):
     # Pick necessary columns
@@ -379,12 +380,11 @@ def main():
     neg_sampler = NegativeSampler(has_column='has_tree')
     negative_samples = neg_sampler.sample_negatives(incidents_weather_df, positive_samples, grid_gdf)
 
-    negative_samples.to_csv("test_neg_samples", sep=",", encoding="utf-8")
-
     weather_getter = GetWeather(grid_path=GRID_DATA_PATH, samples_path=NEGATIVE_SAMPLES_PATH, sleep_time=90)  
     negative_samples = weather_getter.add_weather_data()
 
-    negative_samples.to_csv("test_neg_samples_w.csv", sep=",", encoding="utf-8", index="False")
+    negative_samples.to_csv(f"{FINAL_DATA_DIR}/trees_new_grid_neg_samples.csv", sep=",", encoding="utf-8", index="False")
+    negative_samples.to_csv(f"{FINAL_DATA_DIR}/trees_new_grid_pos_samples.csv"", sep=",", encoding="utf-8", index="False")
 
 if __name__ == "__main__":
     main()
