@@ -43,8 +43,6 @@ class NegativeSampler():
     ):
         start_date = date - pd.DateOffset(days=self.window)
         end_date = date + pd.DateOffset(days=self.window)
-        print(type(start_date))
-        print(type(incidents['Date']))
         grids = incidents[(incidents['Date'] >= start_date) & (incidents['Date'] <= end_date)].values
 
         return False if grid_id not in grids else True
@@ -58,9 +56,6 @@ class NegativeSampler():
         grids_with_trees = list(grid[grid[self.has_column] == True].grid_id.values)
         negatives = positives[['Date', 'Hour']]
         negatives[RF_GRID_COLUMNS] = None
-        # negatives.to_datetime('Date')
-        print(f"types")
-        print(incidents.dtypes)
         for i, row in negatives.iterrows():
             random_grid = random.sample(grids_with_trees, 1)[0]
             while(self.verify_sample(incidents, random_grid, row.Date)):

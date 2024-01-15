@@ -79,9 +79,9 @@ class GetWeather:
                 print("Sleeping for an hour")
                 time.sleep(3600)
 
-        # negative_samples_with_weather = pd.merge(splits, axis=1)
+        com_splits = pd.concat(splits, ignore_index=True)
 
-        return splits
+        return com_splits
 
     def get_api_connection(self):
         # Setup the Open-Meteo API client with cache and retry on error

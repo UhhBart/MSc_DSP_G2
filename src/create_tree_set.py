@@ -288,10 +288,10 @@ def save_data(tree_gdf, incident_gdf, grid_gdf):
     tree_gdf.to_csv(TREE_DATA_CLEAN_PATH, sep=",", encoding="utf-8", index=False)
     incident_gdf.to_csv(INCIDENTS_WEATHER_GEO_PATH, sep=",", encoding="utf-8", index=False)
 
-    # clean and save data
-    grid_gdf = grid_gdf.fillna(0)
-    grid_gdf[grid_gdf.has_tree == True]
-    grid_gdf.to_csv(GRID_DATA_PATH, sep=",", encoding="utf-8", index=False)
+    # # clean and save data
+    # grid_gdf = grid_gdf.fillna(0)
+    # grid_gdf[grid_gdf.has_tree == True]
+    # grid_gdf.to_csv(GRID_DATA_PATH, sep=",", encoding="utf-8", index=False)
 
 def create_save_positives(incident_gdf, tree_gdf, grid_gdf):
     # Pick necessary columns
@@ -339,7 +339,7 @@ def create_save_negatives(
     return negatives
 
 def main():
-    # os.chdir(Path(__file__).parent)
+    os.chdir(Path(__file__).parent)
     # read storm_data
     incident_df = pd.read_csv(INCIDENT_DATA_PATH, sep=",", encoding="utf-8")
     # incident_df = incident_df.drop(['Unnamed: 0'], axis=1)
@@ -383,6 +383,8 @@ def main():
 
     weather_getter = GetWeather(grid_path=GRID_DATA_PATH, samples_path=NEGATIVE_SAMPLES_PATH, sleep_time=90)  
     negative_samples = weather_getter.add_weather_data()
+
+    negative_samples.to_csv("test_neg_samples_w.csv", sep=",", encoding="utf-8", index="False")
 
 if __name__ == "__main__":
     main()
