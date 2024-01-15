@@ -384,7 +384,7 @@ def main():
     negative_samples = weather_getter.add_weather_data()
 
     negative_samples.to_csv(f"{FINAL_DATA_DIR}/trees_new_grid_neg_samples.csv", sep=",", encoding="utf-8", index="False")
-    negative_samples.to_csv(f"{FINAL_DATA_DIR}/trees_new_grid_pos_samples.csv"", sep=",", encoding="utf-8", index="False")
+    negative_samples.to_csv(f"{FINAL_DATA_DIR}/trees_new_grid_pos_samples.csv", sep=",", encoding="utf-8", index="False")
 
 if __name__ == "__main__":
     main()
