@@ -306,39 +306,6 @@ def create_save_positives(incident_gdf, tree_gdf, grid_gdf):
     positive_samples.to_csv(POSITIVE_SAMPLES_PATH, sep=",", encoding="utf-8", index=False)
     return positive_samples
 
-def verify_sample(
-    incidents,
-    grid_id,
-    date,
-    window = DATE_WINDOW
-):
-    start_date = date - pd.DateOffset(days=window)
-    end_date = date + pd.DateOffset(days=window)
-
-    grids = incidents[(incidents['Date'] >= start_date) & (incidents['Date'] <= end_date)].values
-
-    return False if grid_id not in grids else True
-
-
-def create_save_negatives(
-    positives,
-    incidents,
-    grid
-):
-    grids_with_trees = list(grid[grid.has_tree == True].grid_id.values)
-    negatives = positives[['Date', 'Hour']]
-    negatives[RF_GRID_COLUMNS] = None
-
-    for i, row in negatives.iterrows():
-        random_grid = random.sample(grids_with_trees, 1)[0]
-        while(verify_sample(incidents, random_grid, row.Date)):
-            random_grid = random.sample(grids_with_trees, 1)[0]
-        grid_data = grid[grid.grid_id == random_grid][RF_GRID_COLUMNS].reset_index(drop=True)
-        negatives.loc[i, RF_GRID_COLUMNS] = grid_data.iloc[0]
-    # save
-    negatives.to_csv(NEGATIVE_SAMPLES_PATH, sep=",", encoding="utf-8", index=False)
-    return negatives
-
 def main():
     os.chdir(Path(__file__).parent)
     # read storm_data
@@ -376,7 +343,6 @@ def main():
     # save data
     save_data(tree_gdf=tree_gdf, incident_gdf=incident_gdf, grid_gdf=grid_gdf)
     positive_samples = create_save_positives(incident_gdf=incident_gdf, tree_gdf=tree_gdf, grid_gdf=grid_gdf)
-    # negative_samples = create_save_negatives(positives=positive_samples, incidents=incident_gdf, grid=grid_gdf)
     neg_sampler = NegativeSampler(has_column='has_tree')
     negative_samples = neg_sampler.sample_negatives(incidents_weather_df, positive_samples, grid_gdf)
 
