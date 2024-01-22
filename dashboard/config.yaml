@@ -1,0 +1,13 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@gmail.com
+      name: Root Admin
+      password: $2b$12$35Nwa32NA7npI5Lu0popGuuHKumSITSjsAensoAW0xGzrHy8.H6Uq #root123
+cookie:
+  expiry_days: 1
+  key: fHfYWpxM2wQkKWO54O6EeJ37n0xbnQVBRomTyfkZzAaQ2BZQWg9he8V5oIfVp9bujE58GCFuZQlGNvq4WDVSUzJiPGqDi8jBc9En
+  name: auth_cookie
+preauthorized:
+  emails:
+  # - melsby@gmail.com

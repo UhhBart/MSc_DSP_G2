@@ -1,0 +1,32 @@
+shell 1
+ 
+cd ~
+mkdir Projects
+cd Projects
+mkdir streamlit
+git clone https://github.com/streamlit/component-template
+cd streamlit
+cp -r ../component-template/template/ .
+streamlit hello
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+shell 2
+ 
+cd ~
+cd Projects/streamlit/my_component/frontend
+nvm alias default 16
+nvm use 16
+npm install react-scripts@4
+npm audit fix --force
+npm start
+ 
+ 
+NB: "nvm alias default 16"  hoeft maar 1 keer ooit
+NB2: "nvm use 16" zou niet moeten hoeven. Is voor de zekerheid. Check met "nvm list"
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+shell 3
+ 
+cd ~
+cd Projects/streamlit
+streamlit run my_component/__init__.py

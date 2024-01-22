@@ -1,0 +1,24 @@
+{
+"type": "FeatureCollection",
+"features":[
+{"type": "Feature", "properties": {"id": 60, "name": "Aalsmeer"}, "geometry": {"type": "Point", "coordinates": [4.764811, 52.259235]}},
+{"type": "Feature", "properties": {"id": 62, "name": "Amstelveen"}, "geometry": {"type": "Point", "coordinates": [4.881935, 52.301525]}},
+{"type": "Feature", "properties": {"id": 63, "name": "Anton"}, "geometry": {"type": "Point", "coordinates": [4.973669, 52.307780]}},
+{"type": "Feature", "properties": {"id": 70, "name": "Diemen"}, "geometry": {"type": "Point", "coordinates": [4.964735, 52.341316]}},
+{"type": "Feature", "properties": {"id": 71, "name": "Dirk"}, "geometry": {"type": "Point", "coordinates": [4.886135, 52.357837]}},
+{"type": "Feature", "properties": {"id": 72, "name": "Driemond"}, "geometry": {"type": "Point", "coordinates": [5.018978, 52.306972]}},
+{"type": "Feature", "properties": {"id": 73, "name": "Duivendrecht"}, "geometry": {"type": "Point", "coordinates": [4.940434, 52.332235]}},
+{"type": "Feature", "properties": {"id": 74, "name": "GBA"}, "geometry": {"type": "Point", "coordinates": [4.799980, 52.395933]}},
+{"type": "Feature", "properties": {"id": 79, "name": "Hendrik"}, "geometry": {"type": "Point", "coordinates": [4.875937, 52.372513]}},
+{"type": "Feature", "properties": {"id": 81, "name": "IJsbrand"}, "geometry": {"type": "Point", "coordinates": [4.889394, 52.406316]}},
+{"type": "Feature", "properties": {"id": 92, "name": "Nico"}, "geometry": {"type": "Point", "coordinates": [4.909132, 52.370046]}},
+{"type": "Feature", "properties": {"id": 97, "name": "Osdorp"}, "geometry": {"type": "Point", "coordinates": [4.802303, 52.366114]}},
+{"type": "Feature", "properties": {"id": 100, "name": "Pieter"}, "geometry": {"type": "Point", "coordinates": [4.843915, 52.348773]}},
+{"type": "Feature", "properties": {"id": 107, "name": "Teunis"}, "geometry": {"type": "Point", "coordinates": [4.863030, 52.384589]}},
+{"type": "Feature", "properties": {"id": 108, "name": "Uithoorn"}, "geometry": {"type": "Point", "coordinates": [4.816462, 52.242329]}},
+{"type": "Feature", "properties": {"id": 110, "name": "Victor"}, "geometry": {"type": "Point", "coordinates": [4.929215, 52.360357]}},
+{"type": "Feature", "properties": {"id": 112, "name": "Weesp"}, "geometry": {"type": "Point", "coordinates": [5.045221, 52.302660]}},
+{"type": "Feature", "properties": {"id": 113, "name": "Willem"}, "geometry": {"type": "Point", "coordinates": [4.914747, 52.348944]}},
+{"type": "Feature", "properties": {"id": 119, "name": "Zebra"}, "geometry": {"type": "Point", "coordinates": [4.954636, 52.396236]}}
+]
+}
