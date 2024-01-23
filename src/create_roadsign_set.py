@@ -31,8 +31,8 @@ INCIDENTS_WEATHER_GEO_PATH = DATA_DIR_ROADSIGNS / f"incidents_weather_geo_roadsi
 GRID_DATA_PATH = DATA_DIR_ROADSIGNS / f"grid_enriched_roadsigns_{GRID_SIZE}.csv"
 INCIDENT_DATA_PATH = DATA_DIR_BOMEN / 'Incidenten_oorspronkelijk_volledig.csv'
 
-POSITIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"TMP_positive_samples_roadsigns_{GRID_SIZE}.csv"
-NEGATIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"TMP_negative_samples_roadsigns_{GRID_SIZE}.csv"
+POSITIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"positive_samples_roadsigns_{GRID_SIZE}.csv"
+NEGATIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"negative_samples_roadsigns_{GRID_SIZE}.csv"
 
 ZIP_KEY = "Zipcode"
 ZIP4_KEY = "Zip4"
@@ -187,7 +187,7 @@ def verify_sample(incidents, grid_id, date, window=DATE_WINDOW):
     grids = incidents[(incidents['Date'] >= start_date) & (incidents['Date'] <= end_date)].values
     return False if grid_id not in grids else True
 
-grids_with_roadsign = list(grids[grids.has_roadsign == False].grid_id.values)
+grids_with_roadsign = list(grids[grids.has_roadsign == True].grid_id.values)
 negatives = positive_samples[['Date', 'Hour']]
 negatives[GRID_COLUMNS] = None
 
