@@ -30,10 +30,12 @@ class NegativeSampler():
     def __init__(
         self,
         has_column,
+        has_tree,
         window = 5
     ):
         self.has_column = has_column
         self.window = window
+        self.has_tree = has_tree
 
     def verify_sample(
         self,
@@ -53,13 +55,13 @@ class NegativeSampler():
         positives,
         grid
     ):
-        grids_with_trees = list(grid[grid[self.has_column] == True].grid_id.values)
+        grids_to_sample = list(grid[grid[self.has_column] == self.has_tree].grid_id.values)
         negatives = positives[['Date', 'Hour']]
         negatives[RF_GRID_COLUMNS] = None
         for i, row in negatives.iterrows():
-            random_grid = random.sample(grids_with_trees, 1)[0]
+            random_grid = random.sample(grids_to_sample, 1)[0]
             while(self.verify_sample(incidents, random_grid, row.Date)):
-                random_grid = random.sample(grids_with_trees, 1)[0]
+                random_grid = random.sample(grids_to_sample, 1)[0]
             grid_data = grid[grid.grid_id == random_grid][RF_GRID_COLUMNS].reset_index(drop=True)
             negatives.loc[i, RF_GRID_COLUMNS] = grid_data.iloc[0]
 
