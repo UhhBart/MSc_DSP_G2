@@ -220,7 +220,7 @@ def verify_sample(incidents, grid_id, date, window=DATE_WINDOW):
     grids = incidents[(incidents['Date'] >= start_date) & (incidents['Date'] <= end_date)].values
     return False if grid_id not in grids else True
 
-grids_with_building = list(grids[grids.has_building == True].grid_id.values)
+grids_with_building = list(grids[grids.has_building == True].grid_id.values) 
 negatives = positive_samples[['Date', 'Hour']]
 negatives[GRID_COLUMNS] = None
 
