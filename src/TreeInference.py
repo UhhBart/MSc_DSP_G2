@@ -125,7 +125,7 @@ class makeTreePrediction():
             grid = grid_df.copy(deep=True)
             for var, values in weather_vars.items():
                 grid[str(var)] = values[i]
-            preds = clf.predict_proba(grid[FEATURE_COLS])
+            preds = clf.predict(grid[FEATURE_COLS])
             for id_, pred in zip(grid['grid_id'], preds):
                 pred_dict[id_].append(pred)
                 all_preds.append(preds)
