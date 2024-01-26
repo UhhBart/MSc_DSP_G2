@@ -9,7 +9,7 @@ import { Slider, ConfigProvider, Button, Flex } from "antd";
 import { UpSquareOutlined, DownSquareOutlined } from "@ant-design/icons";
 
 interface State {
-  fullGridIsDrawn: boolean,
+  fullGridIsDrawn: boolean;
   numRiskValues: number;
   currentRiskIndex: number;
 }
@@ -22,12 +22,16 @@ const MERCATOR_DISTORTION_RATIO = 0.6102207777653247;
  * automatically when your component should be re-rendered.
  */
 class MapComponent extends StreamlitComponentBase<State> {
-  public state = { fullGridIsDrawn: false, numRiskValues: 1, currentRiskIndex: 0};
+  public state = {
+    fullGridIsDrawn: false,
+    numRiskValues: 1,
+    currentRiskIndex: 0
+  };
 
   private WIDTH = 700;
   private HEIGHT = 600;
 
-  private UI_COLOUR = "#b00927"
+  private UI_COLOUR = "#b00927";
 
   private resizeSVG = (svg) => {
     // get container + svg aspect ratio
@@ -148,7 +152,9 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "map_path")
       .attr("d", this.PROJECTION)
       .attr("fill", (d: any) =>
-        d3.interpolateYlOrRd((risks[d.properties.name][this.state.currentRiskIndex] - 0.6) * 2.5)
+        d3.interpolateYlOrRd(
+          risks[d.properties.name][this.state.currentRiskIndex] * 4
+        )
       )
       .style("opacity", 0.65)
       .style("stroke", "#222222")
@@ -236,7 +242,11 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "grid_path")
       .attr("fill", "none")
       .attr("d", this.PROJECTION)
-      .style("fill", (d: any) => d3.interpolateYlOrRd(risks[d.properties.id][this.state.currentRiskIndex]))
+      .style("fill", (d: any) =>
+        d3.interpolateYlOrRd(
+          risks[d.properties.id][this.state.currentRiskIndex]
+        )
+      )
       .style("opacity", opacity)
       .on("click", (event, d) => {
         if (event.ctrlKey || event.metaKey) {
@@ -441,44 +451,65 @@ class MapComponent extends StreamlitComponentBase<State> {
     };
     draw_axes(x, y, Y_GRIDS, X_GRIDS);
 
-    d3.select("#reset_button")
-      .on("click", () => {
-        svg
-          .transition()
-          .duration(500)
-          .call(zoom.transform, new d3.ZoomTransform(1, 0, 0));
-      });
+    d3.select("#reset_button").on("click", () => {
+      svg
+        .transition()
+        .duration(500)
+        .call(zoom.transform, new d3.ZoomTransform(1, 0, 0));
+    });
 
-      d3.select("#down_button")
-      .on("click", () => {
-        if (this.state.fullGridIsDrawn) {
-          this.setState({ fullGridIsDrawn: false });
-          svg.selectAll("#grid_g").remove();
-          svg.selectAll("#grid_filter_g").style("visibility", "visible");
-        } else {
-          svg.selectAll("#grid_filter_g").remove();
-        }
-      });
+    // const risks = this.props.args["risks"]["service_areas"];
 
-      d3.select("#up_button")
-      .on("click", () => {
+    d3.select("#down_button").on("click", () => {
+      if (this.state.fullGridIsDrawn) {
+        this.setState({ fullGridIsDrawn: false });
         svg.selectAll("#grid_g").remove();
-        svg.selectAll("#grid_filter_g").style("visibility", "hidden");
-        this.draw_grid(zoom);
-        const existingTransform = d3.zoomTransform(svg.node());
-        d3.selectAll(".grid_path").attr(
-          "transform",
-          existingTransform.toString()
-        );
-        d3.select("#selected_g").raise();
-      });
+        // svg.selectAll(".map_path").attr("fill", (d: any) =>
+        //   d3.interpolateYlOrRd(risks[d.properties.name][this.state.currentRiskIndex] * 4)
+        // );
+        svg.selectAll("#grid_filter_g").style("visibility", "visible");
+      } else {
+        svg.selectAll("#grid_filter_g").remove();
+      }
+    });
+
+    d3.select("#up_button").on("click", () => {
+      svg.selectAll("#grid_g").remove();
+      // svg.selectAll(".map_path").attr("fill", "none");
+      svg.selectAll("#grid_filter_g").style("visibility", "hidden");
+      this.draw_grid(zoom);
+      const existingTransform = d3.zoomTransform(svg.node());
+      d3.selectAll(".grid_path").attr(
+        "transform",
+        existingTransform.toString()
+      );
+      d3.select("#selected_g").raise();
+    });
 
     Streamlit.setFrameHeight();
   }
 
   public componentDidUpdate(): void {
     console.log("update");
-    const svg: any = d3.select("#map_svg").call(this.resizeSVG);
+    const svg: any = d3.select("#map_svg").call(this.resizeSVG),
+      risks_service_areas = this.props.args["risks"]["service_areas"],
+      risks_grid = this.props.args["risks"]["grid"];
+
+    svg
+      .selectAll(".map_path")
+      .attr("fill", (d: any) =>
+        d3.interpolateYlOrRd(
+          risks_service_areas[d.properties.name][this.state.currentRiskIndex] *
+            4
+        )
+      );
+    svg
+      .selectAll(".grid_path")
+      .style("fill", (d: any) =>
+        d3.interpolateYlOrRd(
+          risks_grid[d.properties.id][this.state.currentRiskIndex]
+        )
+      );
 
     Streamlit.setFrameHeight();
   }
@@ -508,33 +539,33 @@ class MapComponent extends StreamlitComponentBase<State> {
                   groupBorderColor: this.UI_COLOUR,
                   dangerColor: "#FFFFFF",
                   dangerShadow: "#FFFFFF",
-                  defaultColor: "#FFFFFF",
+                  defaultColor: "#FFFFFF"
                 }
               }
             }}
           >
             <Flex gap="small" vertical>
-              <Slider defaultValue={30} />
+              <Slider
+                defaultValue={0}
+                min={0}
+                max={9}
+                onChange={this.sliderOnChange}
+              />
               <Flex gap="small" align="right" wrap="wrap" justify="flex-end">
-                <Button
-                  id="reset_button"
-                >
-                  Reset Zoom
-                </Button>
-                <Button
-                  id="down_button"
-                  icon={<DownSquareOutlined />}
-                />
-                <Button
-                  id="up_button"
-                  icon={<UpSquareOutlined />}
-                />
+                <Button id="reset_button">Reset Zoom</Button>
+                <Button id="down_button" icon={<DownSquareOutlined />} />
+                <Button id="up_button" icon={<UpSquareOutlined />} />
               </Flex>
             </Flex>
           </ConfigProvider>
         </div>
       </span>
     );
+  };
+
+  private sliderOnChange = (value: number) => {
+    console.log("onChange: ", value);
+    this.setState({ currentRiskIndex: value });
   };
 }
 export default withStreamlitConnection(MapComponent);
