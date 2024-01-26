@@ -5,6 +5,8 @@ import {
 } from "streamlit-component-lib";
 import * as d3 from "d3";
 import React, { ReactNode } from "react";
+import { Slider, ConfigProvider, Button, Flex } from "antd";
+import { UpSquareOutlined, DownSquareOutlined } from "@ant-design/icons";
 
 interface State {
   fullGridIsDrawn: boolean;
@@ -22,6 +24,8 @@ class MapComponent extends StreamlitComponentBase<State> {
 
   private WIDTH = 700;
   private HEIGHT = 600;
+
+  private UI_COLOUR = "#b00927"
 
   private resizeSVG = (svg) => {
     // get container + svg aspect ratio
@@ -75,10 +79,13 @@ class MapComponent extends StreamlitComponentBase<State> {
     Zebra: new d3.ZoomTransform(2.25, -790, 40)
   };
 
+  // Dark Map x, y
+  // -560.3329292111933,
+  // -453.47715175151257
   private BG_TRANSFORM = new d3.ZoomTransform(
     2.9526288113656984,
-    -560.3329292111933,
-    -453.47715175151257
+    -596.2462592893183,
+    -442.9508150815907
   );
 
   private move_path2coords(
@@ -139,9 +146,9 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "map_path")
       .attr("d", this.PROJECTION)
       .attr("fill", (d: any) =>
-        d3.interpolateRdYlGn(1 - risks[d.properties.name])
+        d3.interpolateYlOrRd((risks[d.properties.name][0] - 0.6) * 2.5)
       )
-      .style("opacity", 0.5)
+      .style("opacity", 0.65)
       .style("stroke", "#222222")
       .style("stroke-width", 1.5)
       .on("click", (event, d) => {
@@ -227,11 +234,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "grid_path")
       .attr("fill", "none")
       .attr("d", this.PROJECTION)
-      .style(
-        "fill",
-        (d: any) => d3.interpolateRdYlGn(1 - risks[d.properties.id])
-        // "white"
-      )
+      .style("fill", (d: any) => d3.interpolateYlOrRd(risks[d.properties.id][0]))
       .style("opacity", opacity)
       .on("click", (event, d) => {
         if (event.ctrlKey || event.metaKey) {
@@ -279,7 +282,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       })
       .on("mouseleave", () => {
         tooltip.style("opacity", 0);
-      });;
+      });
 
     return;
   }
@@ -313,7 +316,7 @@ class MapComponent extends StreamlitComponentBase<State> {
           return this.PROJECTION(polygon);
         })
         .attr("pointer-events", "none")
-        .attr("fill", "#2244AA")
+        .attr("fill", "#6688FF")
         .style("stroke", "#111111")
         .style("stroke-width", 1);
     }
@@ -339,7 +342,7 @@ class MapComponent extends StreamlitComponentBase<State> {
     const BG_TRANSFORM = this.BG_TRANSFORM;
 
     function zoomFunc(e: any) {
-      // console.log(e.transform)
+      console.log(e.transform);
       d3.selectAll(".map_path, .grid_path, .icon_path").attr(
         "transform",
         e.transform
@@ -370,7 +373,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("id", "tooltip")
       .attr("class", "tooltip")
       .style("opacity", 0)
-      .style("background-color", "#333333")
+      .style("background-color", "#FFFFFF")
       .style("border", "solid")
       .style("border-width", "2px")
       .style("border-radius", "5px")
@@ -414,8 +417,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       );
       yAxis
         .selectAll("text")
-        .style("font-size", "10")
-        .style("fill", "white")
+        .style("font-size", "15")
         .attr("transform", `translate(20, ${height / y_grids / 4})`);
 
       xAxis.call(
@@ -432,20 +434,12 @@ class MapComponent extends StreamlitComponentBase<State> {
       );
       xAxis
         .selectAll("text")
-        .style("font-size", "10")
-        .style("fill", "white")
+        .style("font-size", "15")
         .attr("transform", `translate(-${height / x_grids / 4}, -20)`);
     };
     draw_axes(x, y, Y_GRIDS, X_GRIDS);
 
-    const plusMinSize = 2;
-    const plusSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${24 * plusMinSize}" height="${24 * plusMinSize}" viewBox="0 0 ${24 * plusMinSize} ${24 * plusMinSize}" fill="none" stroke="currentColor" stroke-width="${2 * plusMinSize}" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-circle"><circle cx="${12 * plusMinSize}" cy="${12 * plusMinSize}" r="${10 * plusMinSize}"/><line x1="${12 * plusMinSize}" x2="${12 * plusMinSize}" y1="${8 * plusMinSize}" y2="${16 * plusMinSize}"/><line x1="${8 * plusMinSize}" x2="${16 * plusMinSize}" y1="${12 * plusMinSize}" y2="${12 * plusMinSize}"/></svg>`;
-    const minusSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${24 * plusMinSize}" height="${24 * plusMinSize}" viewBox="0 0 ${24 * plusMinSize} ${24 * plusMinSize}" fill="none" stroke="currentColor" stroke-width="${2 * plusMinSize}" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus-circle"><circle cx="${12 * plusMinSize}" cy="${12 * plusMinSize}" r="${10 * plusMinSize}"/><line x1="${8 * plusMinSize}" x2="${16 * plusMinSize}" y1="${12 * plusMinSize}" y2="${12 * plusMinSize}"/></svg>`;
-
-    d3.select("#contols_div")
-      .append("button")
-      .attr("id", "reset_button")
-      .text("reset zoom")
+    d3.select("#reset_button")
       .on("click", () => {
         svg
           .transition()
@@ -453,10 +447,7 @@ class MapComponent extends StreamlitComponentBase<State> {
           .call(zoom.transform, new d3.ZoomTransform(1, 0, 0));
       });
 
-    d3.select("#contols_div")
-      .append("foreignObject")
-      .attr("id", "min_button")
-      .text("-")
+      d3.select("#down_button")
       .on("click", () => {
         if (this.state.fullGridIsDrawn) {
           this.setState({ fullGridIsDrawn: false });
@@ -465,13 +456,9 @@ class MapComponent extends StreamlitComponentBase<State> {
         } else {
           svg.selectAll("#grid_filter_g").remove();
         }
-      })
-      .html(minusSvg);
+      });
 
-    d3.select("#contols_div")
-      .append("foreignObject")
-      .attr("id", "plus_button")
-      .text("+")
+      d3.select("#up_button")
       .on("click", () => {
         svg.selectAll("#grid_g").remove();
         svg.selectAll("#grid_filter_g").style("visibility", "hidden");
@@ -482,8 +469,7 @@ class MapComponent extends StreamlitComponentBase<State> {
           existingTransform.toString()
         );
         d3.select("#selected_g").raise();
-      })
-      .html(plusSvg);
+      });
 
     Streamlit.setFrameHeight();
   }
@@ -499,10 +485,54 @@ class MapComponent extends StreamlitComponentBase<State> {
     return (
       <span>
         <div id="svg_div" />
-        <div id="contols_div" style={{ textAlign: "right" }} />
+        <div id="contols_div" style={{ textAlign: "right" }}>
+          <ConfigProvider
+            theme={{
+              components: {
+                Slider: {
+                  dotActiveBorderColor: this.UI_COLOUR,
+                  dotBorderColor: this.UI_COLOUR,
+                  handleActiveColor: this.UI_COLOUR,
+                  handleColor: this.UI_COLOUR,
+                  railBg: this.UI_COLOUR,
+                  railHoverBg: this.UI_COLOUR,
+                  trackBg: this.UI_COLOUR,
+                  trackHoverBg: this.UI_COLOUR
+                },
+                Button: {
+                  algorithm: true,
+                  defaultBg: this.UI_COLOUR,
+                  defaultBorderColor: this.UI_COLOUR,
+                  groupBorderColor: this.UI_COLOUR,
+                  dangerColor: "#FFFFFF",
+                  dangerShadow: "#FFFFFF",
+                  defaultColor: "#FFFFFF",
+                }
+              }
+            }}
+          >
+            <Flex gap="small" vertical>
+              <Slider defaultValue={30} />
+              <Flex gap="small" align="right" wrap="wrap" justify="flex-end">
+                <Button
+                  id="reset_button"
+                >
+                  Reset Zoom
+                </Button>
+                <Button
+                  id="down_button"
+                  icon={<DownSquareOutlined />}
+                />
+                <Button
+                  id="up_button"
+                  icon={<UpSquareOutlined />}
+                />
+              </Flex>
+            </Flex>
+          </ConfigProvider>
+        </div>
       </span>
     );
   };
 }
-
 export default withStreamlitConnection(MapComponent);

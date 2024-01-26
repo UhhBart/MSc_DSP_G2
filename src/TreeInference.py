@@ -6,13 +6,15 @@ import openmeteo_requests
 import pandas as pd
 from pathlib import Path
 from retry_requests import retry
+from datetime import datetime, timedelta
 
-MODEL_DIR = Path("models/trees/")
-GRID_ENRICHED_PATH = Path("data_bomen/grid_enriched_200_new.csv")
+MODEL_DIR = Path('models/trees/')
+GRID_ENRICHED_PATH = Path('data_bomen/grid_enriched_200_new.csv')
 
-LOCATION = ("4.890439", "52.369496")
+LOCATION = ('4.890439', '52.369496')
 
-FEATURE_COLS = ['avg_height', 'avg_year', 'has_tree',
+# FEATURE_COLS = ['avg_height', 'avg_year', 'has_tree',
+FEATURE_COLS = ['avg_height', 'avg_year',
        'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
        'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
        'Ulmus', 'Carpinus', 'Overig', 'Onbekend', 'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
@@ -26,107 +28,121 @@ class makeTreePrediction():
     def __init__(
         self,
         model_name,
-        grid_path,
-        hours_to_predict = 8,
+        grid_path = GRID_ENRICHED_PATH,
         model_dir = MODEL_DIR
     ):
         model_path = model_dir / model_name
 
         self.clf = self.load_model(model_path)
-        
-        self.grid_df = pd.read_csv(grid_path, sep=",", encoding="utf-8")
 
-        self.hours_to_predict = hours_to_predict
+        self.grid_df = pd.read_csv(grid_path, sep=',', encoding='utf-8')
 
     def get_predictions(
-        self,
+        self, weather_params=None, api_dates=None
     ):
-        vars = {
-            'temperature_2m': None,
-            'relative_humidity_2m': None,
-            'dew_point_2m': None,
-            'apparent_temperature': None,
-            'precipitation': None,
-            'rain': None,
-            'snowfall': None,
-            'snow_depth': None,
-            'weather_code': None,
-            'pressure_msl': None,
-            'surface_pressure': None,
-            'wind_speed_10m': None,
-            'wind_speed_100m': None,
-            'wind_direction_10m': None,
-            'wind_direction_100m': None,
-            'wind_gusts_10m': None,
+        weather_vars = {
+            'temperature_2m': [10],
+            'relative_humidity_2m': [80],
+            'dew_point_2m': [10],
+            'apparent_temperature': [10],
+            'precipitation': [10],
+            'rain': [10],
+            'snowfall': [0],
+            'snow_depth': [0],
+            'weather_code': [63],
+            'pressure_msl': [1000],
+            'surface_pressure': [1000],
+            'wind_speed_10m': [80],
+            'wind_gusts_10m': [120],
+            'wind_direction_10m': [120],
         }
-        response = self.request_weather(vars=vars)
-        weather_vars = self.extract_weather_vars(response=response, vars=vars)
+        if weather_params:
+            for param in weather_params:
+                weather_vars[param] = weather_params[param]
 
-        pred_dict = self.make_prediction(grid_df=self.grid_df, clf=self.clf, weather_vars=weather_vars)
+        else:
+            if not api_dates:
+                current_time = datetime.now()
+                rounded_down = current_time.replace(minute=0, second=0, microsecond=0)
+                rounded_up = rounded_down + timedelta(hours=4)
+
+                api_dates = (rounded_down, rounded_up)
+
+            formatted_dates = (api_dates[0].strftime('%Y-%m-%dT%H:%M'), api_dates[1].strftime('%Y-%m-%dT%H:%M'))
+
+            response = self.request_weather(weather_vars=weather_vars, api_dates=formatted_dates)
+            weather_vars = self.extract_weather_vars(response=response, weather_vars=weather_vars)
+
+        hours_to_predict = int((api_dates[1] - api_dates[0]).total_seconds() / 3600)
+
+        pred_dict = self.make_prediction(grid_df=self.grid_df, clf=self.clf, weather_vars=weather_vars, hours_to_predict=hours_to_predict)
 
         return pred_dict
 
     def load_model(self, model_path):
         # model_path = MODEL_DIR / model_name
-        with open(model_path, "rb") as f:
+        with open(model_path, 'rb') as f:
             clf = pickle.load(f)
         return clf
-    
-    
-    def request_weather(self, vars):
+
+
+    def request_weather(self, weather_vars, api_dates):
         # connect to API
         try:
             cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
             retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
             openmeteo = openmeteo_requests.Client(session = retry_session)
         except:
-            print("API connection failed.")
-            
-        latitude = LOCATION[0]
-        longitude = LOCATION[1]
+            print('API connection failed.')
 
-        url = "https://api.open-meteo.com/v1/forecast"
+        longitude = LOCATION[0]
+        latitude = LOCATION[1]
+
+        url = 'https://api.open-meteo.com/v1/forecast'
         params = {
-            "latitude": latitude,
-            "longitude": longitude,
-            "hourly": list(vars.keys()),
-            "forecast_days" : 1,
+            'latitude': latitude,
+            'longitude': longitude,
+            'hourly': list(weather_vars.keys()),
+            'start_hour': api_dates[0],
+        	'end_hour': api_dates[1]
+
         }
         responses = openmeteo.weather_api(url, params=params)
 
         return responses[0]
-    
+
 
     def extract_weather_vars(
         self,
         response,
-        vars
+        weather_vars
     ):
         hourly = response.Hourly()
 
         # Fetch and process the first half of the variables
-        for index, (name, _) in enumerate(vars.items()):
-            vars[name] = hourly.Variables(index).ValuesAsNumpy()
+        for index, (name, _) in enumerate(weather_vars.items()):
+            weather_vars[name] = hourly.Variables(index).ValuesAsNumpy()
 
-        return vars
-    
+        return weather_vars
+
     def make_prediction(
         self,
         grid_df,
         clf,
-        weather_vars
+        weather_vars,
+        hours_to_predict
     ):
         all_preds = []
         pred_dict = {}
         for grid_id in grid_df.grid_id:
             pred_dict[grid_id] = []
 
-        for i in range(self.hours_to_predict):
+        for i in range(hours_to_predict):
             grid = grid_df.copy(deep=True)
             for var, values in weather_vars.items():
                 grid[str(var)] = values[i]
             preds = clf.predict(grid[FEATURE_COLS])
             for id_, pred in zip(grid['grid_id'], preds):
-                pred_dict[id_].append(pred)
+                pred_dict[id_].append(int(pred))
                 all_preds.append(preds)
         return pred_dict

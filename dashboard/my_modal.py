@@ -110,12 +110,14 @@ class Modal:
         )
         with st.container():
             _container = st.container()
-            if self.title:
-                _container.markdown(
-                    f"<h2>{self.title}</h2>", unsafe_allow_html=True)
+            with _container:
+                col1, col2 = st.columns([25,1])
+                if self.title:
+                    col1.markdown(
+                        f"<h2>{self.title}</h2>", unsafe_allow_html=True)
 
-            col1, col2 = st.columns([10,1])
-            close_ = col2.button('Submit', key=f'{self.key}-close', type='primary')
+                close_ = col2.button('X', key=f'{self.key}-close', type='primary')
+
             if close_:
                 self.close()
 

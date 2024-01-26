@@ -5,6 +5,16 @@ from yaml.loader import SafeLoader
 
 st.set_page_config(layout='wide')
 
+st.markdown("""
+        <style>
+               .ea3mdgi2 {
+                    padding-top: 0rem;
+                    padding-bottom: 10rem;
+                    padding-left: 5rem;
+                    padding-right: 5rem;
+                }
+        </style>
+        """, unsafe_allow_html=True)
 
 with open('config.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
