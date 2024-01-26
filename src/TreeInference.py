@@ -57,8 +57,19 @@ class makeTreePrediction():
             'wind_direction_10m': [120],
         }
         if weather_params:
+            hours_to_predict = len(list(weather_params.values())[0])
             for param in weather_params:
                 weather_vars[param] = weather_params[param]
+
+            for name, var in weather_vars.items():
+                if len(var) < hours_to_predict:
+                    # Extend the list by repeating its last value
+                    last_value = var[-1] if len(var) > 0 else 0  # Assuming a default value of 0 if the list is empty
+                    extension = [last_value] * (hours_to_predict - len(var))
+                    weather_vars[name] = var + extension
+                elif len(var) > hours_to_predict:
+                    # Truncate the list to the first n values
+                    weather_vars[name] = var[:hours_to_predict]
 
         else:
             if not api_dates:
@@ -73,7 +84,7 @@ class makeTreePrediction():
             response = self.request_weather(weather_vars=weather_vars, api_dates=formatted_dates)
             weather_vars = self.extract_weather_vars(response=response, weather_vars=weather_vars)
 
-        hours_to_predict = int((api_dates[1] - api_dates[0]).total_seconds() / 3600)
+            hours_to_predict = int((api_dates[1] - api_dates[0]).total_seconds() / 3600)
 
         pred_dict = self.make_prediction(grid_df=self.grid_df, clf=self.clf, weather_vars=weather_vars, hours_to_predict=hours_to_predict)
 

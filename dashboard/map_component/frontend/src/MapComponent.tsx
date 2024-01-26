@@ -9,7 +9,9 @@ import { Slider, ConfigProvider, Button, Flex } from "antd";
 import { UpSquareOutlined, DownSquareOutlined } from "@ant-design/icons";
 
 interface State {
-  fullGridIsDrawn: boolean;
+  fullGridIsDrawn: boolean,
+  numRiskValues: number;
+  currentRiskIndex: number;
 }
 
 // magic const which undos the mercator projection distortion
@@ -20,7 +22,7 @@ const MERCATOR_DISTORTION_RATIO = 0.6102207777653247;
  * automatically when your component should be re-rendered.
  */
 class MapComponent extends StreamlitComponentBase<State> {
-  public state = { fullGridIsDrawn: false };
+  public state = { fullGridIsDrawn: false, numRiskValues: 1, currentRiskIndex: 0};
 
   private WIDTH = 700;
   private HEIGHT = 600;
@@ -146,7 +148,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "map_path")
       .attr("d", this.PROJECTION)
       .attr("fill", (d: any) =>
-        d3.interpolateYlOrRd((risks[d.properties.name][0] - 0.6) * 2.5)
+        d3.interpolateYlOrRd((risks[d.properties.name][this.state.currentRiskIndex] - 0.6) * 2.5)
       )
       .style("opacity", 0.65)
       .style("stroke", "#222222")
@@ -190,7 +192,7 @@ class MapComponent extends StreamlitComponentBase<State> {
         tooltip
           .html(
             `Verzorgings gebied: ${d.properties.name}<br/>
-                Schade Risico: ${risks[d.properties.name].toFixed(2)}`
+                Schade Risico: ${risks[d.properties.name][this.state.currentRiskIndex].toFixed(2)}`
           )
           .style("top", event.pageY - 10 + "px")
           .style("left", event.pageX + 10 + "px");
@@ -234,7 +236,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "grid_path")
       .attr("fill", "none")
       .attr("d", this.PROJECTION)
-      .style("fill", (d: any) => d3.interpolateYlOrRd(risks[d.properties.id][0]))
+      .style("fill", (d: any) => d3.interpolateYlOrRd(risks[d.properties.id][this.state.currentRiskIndex]))
       .style("opacity", opacity)
       .on("click", (event, d) => {
         if (event.ctrlKey || event.metaKey) {
@@ -275,7 +277,7 @@ class MapComponent extends StreamlitComponentBase<State> {
           .html(
             `Verzorgings gebied: ${d.properties.service_area}<br/>
               Grid id: ${d.properties.id}<br/>
-              Schade Risico: ${risks[d.properties.id].toFixed(2)}`
+              Schade Risico: ${risks[d.properties.id][this.state.currentRiskIndex].toFixed(2)}`
           )
           .style("top", event.pageY - 10 + "px")
           .style("left", event.pageX + 10 + "px");

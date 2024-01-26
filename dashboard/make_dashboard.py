@@ -162,11 +162,13 @@ def make_dashboard():
         if map_return['type'] == 'service_area':
             selected_area = map_return['name']
             if selected_area in component_data['risks']['service_areas']:
+                risks = component_data["risks"]["service_areas"][selected_area]
+                mean_risk = sum(risks) / len(risks)
                 st.markdown(f'''
-                            **Verzorgingsgebied** **{selected_area}**, **Risico**:{component_data["risks"]["service_areas"][selected_area]:.2f}
-                            <br> **Bomen**: {component_data["risks"]["service_areas"][selected_area]:.2f}
-                            <br> **Gebouwen**: {component_data["risks"]["service_areas"][selected_area]:.2f}
-                            <br> **Overig**: {component_data["risks"]["service_areas"][selected_area]:.2f}
+                            **Verzorgingsgebied** **{selected_area}** (gemiddeld), **Risico**:{mean_risk:.2f}
+                            <br> **Bomen**: {mean_risk:.2f}
+                            <br> **Gebouwen**: {mean_risk:.2f}
+                            <br> **Overig**: {mean_risk:.2f}
                             ''',
                             unsafe_allow_html=True)
         elif map_return['type'] == 'grid':
@@ -174,11 +176,13 @@ def make_dashboard():
             selected_grid = int(map_return['id'])
 
             if selected_grid in component_data['risks']['grid']:
+                risks = component_data["risks"]["grid"][selected_grid]
+                mean_risk = sum(risks) / len(risks)
                 st.markdown(f'''
-                                **Grid** **{selected_area}**|**{selected_grid}**, **Risico**:{component_data["risks"]["grid"][selected_grid]:.2f}
-                                <br> **Bomen**: {component_data["risks"]["grid"][selected_grid]:.2f}
-                                <br> **Gebouwen**: {component_data["risks"]["grid"][selected_grid]:.2f}
-                                <br> **Overig**: {component_data["risks"]["grid"][selected_grid]:.2f}
+                                **Grid** **{selected_area}**|**{selected_grid}** (gemiddeld), **Risico**:{mean_risk:.2f}
+                                <br> **Bomen**: {mean_risk:.2f}
+                                <br> **Gebouwen**: {mean_risk:.2f}
+                                <br> **Overig**: {mean_risk:.2f}
                                 ''',
                                 unsafe_allow_html=True)
         else:
