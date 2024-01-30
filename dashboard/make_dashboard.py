@@ -4,6 +4,7 @@ def make_dashboard():
 
     import streamlit as st
     import my_modal
+    import numpy as np
     import pandas as pd
     import json
     import cv2
@@ -13,9 +14,10 @@ def make_dashboard():
     import datetime
     import pathlib
     import datetime
+    import matplotlib.pyplot as plt
 
     from component import map_component
-    from TreeInference import makeTreePrediction
+    from Inference import Inference
 
     if 'temperature' not in st.session_state:
         st.session_state['wind_gusts'] = 90
@@ -32,15 +34,65 @@ def make_dashboard():
         now = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
         st.session_state['dates'] = (now, now + datetime.timedelta(hours=10))
 
+    MODEL_NAMES = ['trees', 'buildings', 'roadsigns']
+    for model_name in MODEL_NAMES:
+        key = f'use_{model_name}'
+        if key not in st.session_state:
+            st.session_state[key] = True
+
+    def set_model_fractions():
+        model_fractions = {}
+        # {model_name: int(st.session_state['model_use'][model_name]) for model_name in MODEL_NAMES}
+        for model_name in MODEL_NAMES:
+            model_fractions[model_name] = int(st.session_state[f'use_{model_name}'])
+
+        if sum(list(model_fractions.values())) == 0:
+            model_fractions = {model_name: 1 for model_name in MODEL_NAMES}
+
+        st.session_state['model_fractions'] = model_fractions
+
+        return model_fractions
+
+    def on_change_model_select():
+        set_model_fractions()
+        agg_risks = aggregate_model_risks(st.session_state['risks'], MODEL_NAMES)
+        st.session_state['risks']['service_areas'] = agg_risks['service_areas']
+        st.session_state['risks']['grid'] = agg_risks['grid']
+        return
+
+    if 'model_fractions' not in st.session_state:
+        set_model_fractions()
+
     st.title('Brandweer Amsterdam')
     st.markdown(f'Voorspelling van **{st.session_state["dates"][0].strftime("%Y-%m-%d %H:%M")}** tot **{st.session_state["dates"][1].strftime("%Y-%m-%d %H:%M")}**')
 
 
     @st.cache_resource
     def load_tree_model():
-        model = makeTreePrediction(model_name=pathlib.Path('xgboost_new_md15_sub90_mixed.pkl'),
+        model = Inference(model_name=pathlib.Path('xgboost_new_md20_sub50_tfr.pkl'),
                                    model_dir=pathlib.Path('../src/models/trees/'),
-                                   grid_path=pathlib.Path('grid_by_hand_enriched.csv'))
+                                   model_type='trees',
+                                   grid_path=pathlib.Path('grid_trees.csv'))
+
+        return model
+
+
+    @st.cache_resource
+    def load_building_model():
+        model = Inference(model_name=pathlib.Path('xgboost_model_buildings.pkl'),
+                                   model_dir=pathlib.Path('../src/models/buildings/'),
+                                   model_type='buildings',
+                                   grid_path=pathlib.Path('grid_buildings.csv'))
+
+        return model
+
+
+    @st.cache_resource
+    def load_roadsign_model():
+        model = Inference(model_name=pathlib.Path('xgboost_model_roadsigns.pkl'),
+                                   model_dir=pathlib.Path('../src/models/roadsigns/'),
+                                   model_type='roadsigns',
+                                   grid_path=pathlib.Path('grid_roadsigns.csv'))
 
         return model
 
@@ -63,32 +115,79 @@ def make_dashboard():
                 'map_bg': base64_encoded,}
 
 
-    def get_risks(tree_model, weather_params, api_dates, service_areas, grid):
-        print('in get_risks')
-        grid_risks = tree_model.get_predictions(weather_params, api_dates)
-        grid_risks = {key: grid_risks[key] for key in grid_risks}
-        # print(grid_risks)
-        # exit()
-        service_areas_risks = {feature['properties']['name']: [] for feature in service_areas['features']}
+    def get_risks(models, model_names, weather_params, api_dates, service_areas, grid):
+        def aggregate_grid_risks(grid_risks):
+            service_areas_risks = {feature['properties']['name']: [] for feature in service_areas['features']}
 
-        zipped_risks = list(
-                            # zip service_area per grid with risks per grid
-                            zip(
-                                # map grid['features'] to their service_area's
-                                map(lambda feature: feature['properties']['service_area'],
-                                    grid['features']),
-                                # sort (key, val) on grid_id, then get the risks
-                                [x[1] for x in sorted(list(grid_risks.items()), key=lambda x: int(x[0]))]))
+            zipped_risks = list(
+                                # zip service_area per grid with risks per grid
+                                zip(
+                                    # map grid['features'] to their service_area's
+                                    map(lambda feature: feature['properties']['service_area'],
+                                        grid['features']),
+                                    # sort (key, val) on grid_id, then get the risks
+                                    [x[1] for x in sorted(list(grid_risks.items()), key=lambda x: int(x[0]))]))
 
-        grouped_risks = groupby(sorted(zipped_risks, key=lambda x: x[0]), key=lambda x: x[0])
+            grouped_risks = groupby(sorted(zipped_risks, key=lambda x: x[0]), key=lambda x: x[0])
 
-        for name, group in grouped_risks:
-            values = [value for _, value in group]
-            if values:
-                service_areas_risks[name] = [sum(column) / len(column) for column in zip(*values)]
+            for name, group in grouped_risks:
+                values = [value for _, value in group]
+                if values:
+                    service_areas_risks[name] = list(np.mean(values, axis=0))
 
+            return service_areas_risks
 
-        return {'service_areas': service_areas_risks, 'grid': grid_risks}
+        def aggregate_model_risks(risk_dict):
+            all_risks = []
+            for model_name in model_names:
+                all_risks.append(list(risk_dict[model_name]['grid'].values()))
+
+            combined_grid_risks_list = np.average(all_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
+
+            combined_grid_risks = {}
+            for i, key in enumerate(risk_dict[model_name]['grid'].keys()):
+                combined_grid_risks[key] = list(combined_grid_risks_list[i])
+
+            return combined_grid_risks
+
+        risk_dict = {}
+        for model_name, model in zip(model_names, models):
+            grid_risks = model.get_predictions(weather_params, api_dates)
+
+            service_areas_risks = aggregate_grid_risks(grid_risks)
+
+            risk_dict[model_name] = dict({'service_areas': service_areas_risks, 'grid': grid_risks})
+
+        combined_grid_risks = aggregate_model_risks(risk_dict)
+        combined_service_areas_risks = aggregate_grid_risks(combined_grid_risks)
+
+        risk_dict['grid'] = combined_grid_risks
+        risk_dict['service_areas'] = combined_service_areas_risks
+
+        return risk_dict
+
+    def aggregate_model_risks(risk_dict, model_names):
+        all_grid_risks = []
+        for model_name in model_names:
+            all_grid_risks.append(list(risk_dict[model_name]['grid'].values()))
+
+        combined_grid_risks_list = np.average(all_grid_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
+
+        combined_grid_risks = {}
+        for i, key in enumerate(risk_dict[model_name]['grid'].keys()):
+            combined_grid_risks[key] = list(combined_grid_risks_list[i])
+
+        all_service_areas_risks = []
+        for model_name in model_names:
+            all_service_areas_risks.append(list(risk_dict[model_name]['service_areas'].values()))
+
+        combined_service_areas_risks_list = np.average(all_service_areas_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
+
+        combined_service_areas_risks = {}
+        for i, key in enumerate(risk_dict[model_name]['service_areas'].keys()):
+            combined_service_areas_risks[key] = list(combined_service_areas_risks_list[i])
+
+        return {'service_areas': combined_service_areas_risks, 'grid': combined_grid_risks}
 
     @st.cache_data
     def calc_risk_ranking(service_areas_risks):
@@ -136,10 +235,12 @@ def make_dashboard():
         return risk_ranking, risk_ranking_html, risk_ranking_pdf, risk_ranking_csv
 
     tree_model = load_tree_model()
+    building_model = load_building_model()
+    roadsign_model = load_roadsign_model()
     component_data = load_component_data()
 
     if 'risks' not in st.session_state:
-        st.session_state['risks'] = get_risks(tree_model, {}, st.session_state['dates'], component_data['service_areas'], component_data['grid'])
+        st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['grid'])
 
     component_data['risks'] = st.session_state['risks']
 
@@ -162,14 +263,20 @@ def make_dashboard():
         if map_return['type'] == 'service_area':
             selected_area = map_return['name']
             if selected_area in component_data['risks']['service_areas']:
-                risks = component_data["risks"]["service_areas"][selected_area]
-                # mean_risk = sum(risks) / len(risks)
-                mean_risk = risks[0]
+                risks = component_data['risks']['service_areas'][selected_area]
+                tree_risks = component_data['risks']['trees']['service_areas'][selected_area]
+                building_risks = component_data['risks']['buildings']['service_areas'][selected_area]
+                roadsign_risks = component_data['risks']['roadsigns']['service_areas'][selected_area]
+                mean_risk = sum(risks) / len(risks)
+                mean_tree_risk = sum(tree_risks) / len(tree_risks)
+                mean_building_risk = sum(building_risks) / len(building_risks)
+                mean_roadsign_risk = sum(roadsign_risks) / len(roadsign_risks)
+
                 st.markdown(f'''
                             **Verzorgingsgebied** **{selected_area}** (gemiddeld), **Risico**:{mean_risk:.2f}
-                            <br> **Bomen**: {mean_risk:.2f}
-                            <br> **Gebouwen**: {mean_risk:.2f}
-                            <br> **Overig**: {mean_risk:.2f}
+                            <br> **Bomen**: {mean_tree_risk:.2f}
+                            <br> **Gebouwen**: {mean_building_risk:.2f}
+                            <br> **Overig**: {mean_roadsign_risk:.2f}
                             ''',
                             unsafe_allow_html=True)
         elif map_return['type'] == 'grid':
@@ -177,14 +284,20 @@ def make_dashboard():
             selected_grid = int(map_return['id'])
 
             if selected_grid in component_data['risks']['grid']:
-                risks = component_data["risks"]["grid"][selected_grid]
-                # mean_risk = sum(risks) / len(risks)
-                mean_risk = risks[0]
+                risks = component_data['risks']['grid'][selected_grid]
+                tree_risks = component_data['risks']['trees']['grid'][selected_grid]
+                building_risks = component_data['risks']['buildings']['grid'][selected_grid]
+                roadsign_risks = component_data['risks']['roadsigns']['grid'][selected_grid]
+                mean_risk = sum(risks) / len(risks)
+                mean_tree_risk = sum(tree_risks) / len(tree_risks)
+                mean_building_risk = sum(building_risks) / len(building_risks)
+                mean_roadsign_risk = sum(roadsign_risks) / len(roadsign_risks)
+
                 st.markdown(f'''
                                 **Grid** **{selected_area}**|**{selected_grid}** (gemiddeld), **Risico**:{mean_risk:.2f}
-                                <br> **Bomen**: {mean_risk:.2f}
-                                <br> **Gebouwen**: {mean_risk:.2f}
-                                <br> **Overig**: {mean_risk:.2f}
+                                <br> **Bomen**: {mean_tree_risk:.2f}
+                                <br> **Gebouwen**: {mean_building_risk:.2f}
+                                <br> **Overig**: {mean_roadsign_risk:.2f}
                                 ''',
                                 unsafe_allow_html=True)
         else:
@@ -201,7 +314,7 @@ def make_dashboard():
             calc_risk_ranking(list(component_data['risks']['service_areas'].items()))
 
 
-        tab_text, tab_plot = st.tabs(['Risico Ranking', 'Analyse'])
+        tab_text, tab_tree, tab_building, tab_roadsign = st.tabs(['Risico Ranking', 'Bomen', 'Gebouwen', 'Overig'])
         with tab_text:
             st.markdown('**Verzorgingsgebied** **risico** **ranking**:')
             st.dataframe(risk_ranking, height=270)
@@ -227,6 +340,10 @@ def make_dashboard():
         open_modal = st.button('Nieuwe Storm', type='primary')
         if open_modal:
             modal.open()
+
+        st.checkbox('Bomen', on_change=on_change_model_select, key='use_trees')
+        st.checkbox('Gebouwen', on_change=on_change_model_select, key='use_buildings')
+        st.checkbox('Overig', on_change=on_change_model_select, key='use_roadsigns')
 
         if modal.is_open():
             with modal.container():
@@ -290,7 +407,7 @@ def make_dashboard():
                                                     'wind_direction_10m': [st.session_state['wind_direction']]
                                                     }
 
-                                    st.session_state['risks'] = get_risks(tree_model, weather_params, (), component_data['service_areas'], component_data['grid'])
+                                    st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, weather_params, (), component_data['service_areas'], component_data['grid'])
                                     modal.close()
 
                     with tab_old:
@@ -339,7 +456,7 @@ def make_dashboard():
                             with col_submit:
                                 if st.form_submit_button('Submit', type='primary'):
                                     st.session_state['dates'] = (datetime.datetime.combine(input_dates[0], input_time0), datetime.datetime.combine(input_dates[1], input_time1))
-                                    st.session_state['risks'] = get_risks(tree_model, {}, st.session_state['dates'], component_data['service_areas'], component_data['grid'])
+                                    st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['grid'])
                                     modal.close()
 
 
@@ -347,3 +464,19 @@ def make_dashboard():
                         st.text('Upload CSV')
                         storm_data = st.file_uploader('Storm Data')
                         # form submit weather_params = storm_data
+
+    with tab_tree:
+        tree_model.get_explainer_plot()
+        # fig, ax = plt.gcf(), plt.gca()
+
+        # ax.set_title('Feature Importance - Boom Schade', fontsize=16)
+        st.pyplot()
+    # with tab_building:
+    #     st.pyplot(building_model.get_explainer_plot())
+    with tab_roadsign:
+        # fig, ax = None, None
+        roadsign_model.get_explainer_plot()
+        # fig, ax = plt.gcf(), plt.gca()
+
+        # ax.set_title('Feature Importance - Overige Schade', fontsize=16)
+        st.pyplot()

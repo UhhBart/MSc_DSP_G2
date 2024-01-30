@@ -9,34 +9,50 @@ from retry_requests import retry
 from datetime import datetime, timedelta
 
 import shap
+import matplotlib.pyplot as plt
+import xgboost as xgb
 
-MODEL_DIR = Path('models/trees/')
+MODEL_DIR = Path('models/')
 GRID_ENRICHED_PATH = Path('data_bomen/grid_enriched_200_new.csv')
 
 LOCATION = ('4.890439', '52.369496')
 
-FEATURE_COLS = ['avg_height', 'avg_year', 'has_tree', 'num_trees',
-       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
-       'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
-       'Ulmus', 'Carpinus', 'Overig', 'Onbekend', 'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
-       'apparent_temperature', 'precipitation', 'rain', 'snowfall',
-       'snow_depth', 'weather_code', 'pressure_msl', 'surface_pressure',
-       'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m',
-       ]
+FEATURE_COLS = {'trees': ['avg_height', 'avg_year', 'has_tree', 'num_trees',
+                          'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
+                          'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
+                          'Ulmus', 'Carpinus', 'Overig', 'Onbekend', 'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
+                          'apparent_temperature', 'precipitation', 'rain', 'snowfall',
+                          'snow_depth', 'weather_code', 'pressure_msl', 'surface_pressure',
+                          'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m',
+       ],
+       'buildings': ['has_building', 'Gewogen Gemiddeld Bouwjaar', 'wind_gusts_10m'],
+
+       'roadsigns':  ['Gemiddelde kijkrichting', 'Gemiddelde hoogte onderkant bord',
+                      'wind_gusts_10m', 'wind_direction_10m',
+                      'Bouwwerk', 'Buispaal', 'Flespaal', 'Hekwerk', 'Lichtmast',
+                      'Mast', 'Muur', 'Overig', 'Portaal', 'Scheiding', 'VRI-Mast']
+       }
+
+MODEL_TYPE_NAMES = {'trees': 'bomen',
+                    'buildings': 'gebouwen',
+                    'roadsigns': 'overige'}
 
 
-class makeTreePrediction():
+class Inference():
     def __init__(
         self,
         model_name,
+        model_dir = MODEL_DIR,
+        model_type = 'trees',
         grid_path = GRID_ENRICHED_PATH,
-        model_dir = MODEL_DIR
     ):
         model_path = model_dir / model_name
 
         self.clf = self.load_model(model_path)
 
         self.grid_df = pd.read_csv(grid_path, sep=',', encoding='utf-8')
+
+        self.model_type = model_type
 
         self.lastX = []
 
@@ -89,7 +105,7 @@ class makeTreePrediction():
 
             hours_to_predict = int((api_dates[1] - api_dates[0]).total_seconds() / 3600)
 
-        pred_dict = self.make_prediction(grid_df=self.grid_df, clf=self.clf, weather_vars=weather_vars, hours_to_predict=hours_to_predict)
+        pred_dict = self.make_prediction(weather_vars=weather_vars, hours_to_predict=hours_to_predict)
 
         return pred_dict
 
@@ -141,30 +157,57 @@ class makeTreePrediction():
 
     def make_prediction(
         self,
-        grid_df,
-        clf,
         weather_vars,
         hours_to_predict
     ):
         self.lastX = []
         all_preds = []
         pred_dict = {}
-        for grid_id in grid_df.grid_id:
+        for grid_id in self.grid_df.grid_id:
             pred_dict[grid_id] = []
 
         for i in range(hours_to_predict):
-            grid = grid_df.copy(deep=True)
+            grid = self.grid_df.copy(deep=True)
             for var, values in weather_vars.items():
                 grid[str(var)] = values[i]
-            self.lastX = grid[FEATURE_COLS]
-            preds = clf.predict(grid[FEATURE_COLS])
+            self.lastX = grid[FEATURE_COLS[self.model_type]]
+            if self.model_type == 'trees':
+                preds = self.clf.predict(grid[FEATURE_COLS[self.model_type]])
+            else:
+                preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
             for id_, pred in zip(grid['grid_id'], preds):
-                pred_dict[id_].append(int(pred))
+                pred_dict[id_].append(float(pred))
                 all_preds.append(preds)
-        print(self.lastX)
+
         return pred_dict
 
     def get_explainer_plot(self):
         explainer = shap.TreeExplainer(self.clf)
         shap_values = explainer.shap_values(self.lastX)
-        return shap.summary_plot(shap_values, self.lastX)
+        # if self.model_type == 'trees':
+        #     shap_values = self.clf.predict(self.grid_df[FEATURE_COLS[self.model_type]], pred_contribs=True)
+        # else:
+        #     print(FEATURE_COLS[self.model_type])
+        #     shap_values = self.clf.predict(xgb.DMatrix(self.grid_df[FEATURE_COLS[self.model_type]], enable_categorical=True), pred_contribs=True)
+        plot = shap.summary_plot(shap_values, self.lastX, self.get_formatted_colnames(), max_display=10)
+        fig, ax = plt.gcf(), plt.gca()
+
+        ax.set_title(f'Feature Importance - {MODEL_TYPE_NAMES[self.model_type].capitalize()} Schade', fontsize=16)
+        return plot
+
+    def get_formatted_colnames(self):
+        return [f
+                .replace('_', ' ')
+                .replace('has', 'heeft')
+                .replace('num', 'aantal')
+                .replace('avg', 'gemiddelde')
+                .replace('height', 'hoogte')
+                .replace('year', 'jaar')
+                .replace('tree', 'bomen')
+                .replace('trees', 'bomen')
+                .replace('precipitation', 'neerslag')
+                .replace('speed', 'snelheid')
+                .replace('gusts', 'stoten')
+                .replace('building', 'gebouwen')
+                .capitalize()
+                for f in FEATURE_COLS[self.model_type]]

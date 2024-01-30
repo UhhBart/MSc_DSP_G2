@@ -153,7 +153,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("d", this.PROJECTION)
       .attr("fill", (d: any) =>
         d3.interpolateYlOrRd(
-          risks[d.properties.name][this.state.currentRiskIndex] * 4
+          risks[d.properties.name][this.state.currentRiskIndex]
         )
       )
       .style("opacity", 0.65)
@@ -180,7 +180,7 @@ class MapComponent extends StreamlitComponentBase<State> {
           d3.select("#selected_g").raise();
           d3.select("#selected_area")
             .datum(d)
-            .attr("class", "map_path")
+            .attr("class", "selected_path")
             .attr("d", this.PROJECTION)
             .attr("fill", "none")
             .style("stroke", "#111111")
@@ -268,7 +268,7 @@ class MapComponent extends StreamlitComponentBase<State> {
           d3.select("#selected_area")
             .raise()
             .datum(d)
-            .attr("class", "map_path")
+            .attr("class", "selected_path")
             .attr("d", this.PROJECTION)
             .attr("fill", "none")
             .style("stroke", "#111111")
@@ -355,7 +355,7 @@ class MapComponent extends StreamlitComponentBase<State> {
 
     function zoomFunc(e: any) {
       console.log(e.transform);
-      d3.selectAll(".map_path, .grid_path, .icon_path").attr(
+      d3.selectAll(".map_path, .grid_path, .selected_path, .icon_path").attr(
         "transform",
         e.transform
       );
@@ -465,7 +465,7 @@ class MapComponent extends StreamlitComponentBase<State> {
         this.setState({ fullGridIsDrawn: false });
         svg.selectAll("#grid_g").remove();
         // svg.selectAll(".map_path").attr("fill", (d: any) =>
-        //   d3.interpolateYlOrRd(risks[d.properties.name][this.state.currentRiskIndex] * 4)
+        //   d3.interpolateYlOrRd(risks[d.properties.name][this.state.currentRiskIndex])
         // );
         svg.selectAll("#grid_filter_g").style("visibility", "visible");
       } else {
@@ -499,8 +499,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .selectAll(".map_path")
       .attr("fill", (d: any) =>
         d3.interpolateYlOrRd(
-          risks_service_areas[d.properties.name][this.state.currentRiskIndex] *
-            4
+          risks_service_areas[d.properties.name][this.state.currentRiskIndex]
         )
       );
     svg
@@ -518,7 +517,7 @@ class MapComponent extends StreamlitComponentBase<State> {
     return (
       <span>
         <div id="svg_div" />
-        <div id="contols_div" style={{ textAlign: "right" }}>
+        <div id="contols_div" style={{ textAlign: "right", paddingLeft: "1em", paddingRight: "1em" }}>
           <ConfigProvider
             theme={{
               components: {
@@ -548,7 +547,7 @@ class MapComponent extends StreamlitComponentBase<State> {
               <Slider
                 defaultValue={0}
                 min={0}
-                max={9}
+                max={this.props.args["risks"]["service_areas"][Object.keys(this.props.args["risks"]["service_areas"])[0]].length - 1}
                 onChange={this.sliderOnChange}
               />
               <Flex gap="small" align="right" wrap="wrap" justify="flex-end">
