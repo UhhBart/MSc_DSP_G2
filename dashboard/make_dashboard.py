@@ -18,6 +18,7 @@ def make_dashboard():
 
     from component import map_component
     from Inference import Inference
+    from GetPOI import GetPoiDistances
 
     if 'temperature' not in st.session_state:
         st.session_state['wind_gusts'] = 90
@@ -480,3 +481,6 @@ def make_dashboard():
 
         # ax.set_title('Feature Importance - Overige Schade', fontsize=16)
         st.pyplot()
+
+    # POI_distances = GetPoiDistances(grid_path='grid_by_hand.csv')
+    # print(POI_distances.get_distances())
