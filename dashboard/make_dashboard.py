@@ -70,7 +70,8 @@ def make_dashboard():
 
     @st.cache_resource
     def load_tree_model():
-        model = Inference(model_name=pathlib.Path('xgboost_new_md20_sub50_tfr.pkl'),
+        # model = Inference(model_name=pathlib.Path('xgboost_new_md20_sub50_tfr.pkl'),
+        model = Inference(model_name=pathlib.Path('TEST_xgboost_model_trees.pkl'),
                                    model_dir=pathlib.Path('../src/models/trees/'),
                                    model_type='trees',
                                    grid_path=pathlib.Path('grid_trees.csv'))
@@ -117,7 +118,7 @@ def make_dashboard():
 
 
     def get_risks(models, model_names, weather_params, api_dates, service_areas, grid):
-        def aggregate_grid_risks(grid_risks):
+        def _aggregate_grid_risks(grid_risks):
             service_areas_risks = {feature['properties']['name']: [] for feature in service_areas['features']}
 
             zipped_risks = list(
@@ -138,7 +139,7 @@ def make_dashboard():
 
             return service_areas_risks
 
-        def aggregate_model_risks(risk_dict):
+        def _aggregate_model_risks(risk_dict):
             all_risks = []
             for model_name in model_names:
                 all_risks.append(list(risk_dict[model_name]['grid'].values()))
@@ -155,12 +156,12 @@ def make_dashboard():
         for model_name, model in zip(model_names, models):
             grid_risks = model.get_predictions(weather_params, api_dates)
 
-            service_areas_risks = aggregate_grid_risks(grid_risks)
+            service_areas_risks = _aggregate_grid_risks(grid_risks)
 
             risk_dict[model_name] = dict({'service_areas': service_areas_risks, 'grid': grid_risks})
 
-        combined_grid_risks = aggregate_model_risks(risk_dict)
-        combined_service_areas_risks = aggregate_grid_risks(combined_grid_risks)
+        combined_grid_risks = _aggregate_model_risks(risk_dict)
+        combined_service_areas_risks = _aggregate_grid_risks(combined_grid_risks)
 
         risk_dict['grid'] = combined_grid_risks
         risk_dict['service_areas'] = combined_service_areas_risks
@@ -168,25 +169,53 @@ def make_dashboard():
         return risk_dict
 
     def aggregate_model_risks(risk_dict, model_names):
+        def _aggregate_grid_risks(grid_risks):
+            service_areas_risks = {feature['properties']['name']: [] for feature in component_data['service_areas']['features']}
+
+            zipped_risks = list(
+                                # zip service_area per grid with risks per grid
+                                zip(
+                                    # map grid['features'] to their service_area's
+                                    map(lambda feature: feature['properties']['service_area'],
+                                        component_data['grid']['features']),
+                                    # sort (key, val) on grid_id, then get the risks
+                                    [x[1] for x in sorted(list(grid_risks.items()), key=lambda x: int(x[0]))]))
+
+            grouped_risks = groupby(sorted(zipped_risks, key=lambda x: x[0]), key=lambda x: x[0])
+
+            for name, group in grouped_risks:
+                values = [value for _, value in group]
+                if values:
+                    service_areas_risks[name] = list(np.mean(values, axis=0))
+
+            return service_areas_risks
+
         all_grid_risks = []
         for model_name in model_names:
-            all_grid_risks.append(list(risk_dict[model_name]['grid'].values()))
+            model_grid_risk = risk_dict[model_name]['grid'].copy()
+            if st.session_state['use_pois'] and 'poi_distances' in st.session_state:
+                for grid_id in model_grid_risk:
+                    model_grid_risk[grid_id] = [r * (1 + (10 * st.session_state['poi_distances'][grid_id])) for r in model_grid_risk[grid_id]]
+
+            all_grid_risks.append(list(model_grid_risk.values()))
 
         combined_grid_risks_list = np.average(all_grid_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
 
         combined_grid_risks = {}
-        for i, key in enumerate(risk_dict[model_name]['grid'].keys()):
+        for i, key in enumerate(risk_dict[model_names[0]]['grid'].keys()):
             combined_grid_risks[key] = list(combined_grid_risks_list[i])
 
-        all_service_areas_risks = []
-        for model_name in model_names:
-            all_service_areas_risks.append(list(risk_dict[model_name]['service_areas'].values()))
+        combined_service_areas_risks = _aggregate_grid_risks(combined_grid_risks)
 
-        combined_service_areas_risks_list = np.average(all_service_areas_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
+        # all_service_areas_risks = []
+        # for model_name in model_names:
+        #     all_service_areas_risks.append(list(risk_dict[model_name]['service_areas'].values()))
 
-        combined_service_areas_risks = {}
-        for i, key in enumerate(risk_dict[model_name]['service_areas'].keys()):
-            combined_service_areas_risks[key] = list(combined_service_areas_risks_list[i])
+        # combined_service_areas_risks_list = np.average(all_service_areas_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
+
+        # combined_service_areas_risks = {}
+        # for i, key in enumerate(risk_dict[model_names[0]]['service_areas'].keys()):
+        #     combined_service_areas_risks[key] = list(combined_service_areas_risks_list[i])
 
         return {'service_areas': combined_service_areas_risks, 'grid': combined_grid_risks}
 
@@ -278,6 +307,7 @@ def make_dashboard():
                             <br> **Bomen**: {mean_tree_risk:.2f}
                             <br> **Gebouwen**: {mean_building_risk:.2f}
                             <br> **Overig**: {mean_roadsign_risk:.2f}
+                            <br> **Gebruik** **POI**: {"ja" if st.session_state['use_pois'] else "nee"}
                             ''',
                             unsafe_allow_html=True)
         elif map_return['type'] == 'grid':
@@ -299,6 +329,7 @@ def make_dashboard():
                                 <br> **Bomen**: {mean_tree_risk:.2f}
                                 <br> **Gebouwen**: {mean_building_risk:.2f}
                                 <br> **Overig**: {mean_roadsign_risk:.2f}
+                                <br> **Gebruik** **POI**: {"ja" if st.session_state['use_pois'] else "nee"}
                                 ''',
                                 unsafe_allow_html=True)
         else:
@@ -307,6 +338,7 @@ def make_dashboard():
                             <br> **Bomen**:
                             <br> **Gebouwen**:
                             <br> **Overig**:
+                            <br> **Gebruik** **POI**: {"ja" if st.session_state['use_pois'] else "nee"}
                             ''',
                             unsafe_allow_html=True)
 
@@ -345,6 +377,7 @@ def make_dashboard():
         st.checkbox('Bomen', on_change=on_change_model_select, key='use_trees')
         st.checkbox('Gebouwen', on_change=on_change_model_select, key='use_buildings')
         st.checkbox('Overig', on_change=on_change_model_select, key='use_roadsigns')
+        st.checkbox('POI\'s', on_change=on_change_model_select, key='use_pois')
 
         if modal.is_open():
             with modal.container():
@@ -482,5 +515,22 @@ def make_dashboard():
         # ax.set_title('Feature Importance - Overige Schade', fontsize=16)
         st.pyplot()
 
-    # POI_distances = GetPoiDistances(grid_path='grid_by_hand.csv')
-    # print(POI_distances.get_distances())
+    @st.cache_resource
+    def make_poi_getter():
+        POI_distances = GetPoiDistances(grid_path='grid_by_hand.csv')
+        POI_distances.get_distances()
+
+        return POI_distances
+
+    if 'get_poi_distances' not in st.session_state:
+        st.session_state['get_poi_distances'] = make_poi_getter()
+        distances_df = st.session_state['get_poi_distances'].grid_gdf
+
+        st.session_state['poi_distances'] = {id: distance for (id, distance) in list(zip(distances_df['id'], distances_df['summed_distance']))}
+
+    POI_distances = st.session_state['get_poi_distances']
+    st.text(POI_distances.grid_gdf.columns)
+    st.dataframe(POI_distances.grid_gdf['summed_distance'].describe())
+    # st.dataframe(POI_distances.grid_gdf[['id', 'summed_distance']])
+    # st.text(POI_distances.prio_pois_df.columns)
+    # st.dataframe(POI_distances.prio_pois_df['amenity'])

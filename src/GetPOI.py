@@ -7,23 +7,25 @@ from shapely.wkt import loads
 
 GRID_PATH = "final_data/grids/grid_by_hand.csv"
 
-CRS_AMSTERDAM = "EPSG:28992"
+# CRS_AMSTERDAM = "EPSG:28992"
 
 class GetPoiDistances():
     def __init__(
         self,
-        pois=['university', 'school', 'kindergarten', 'college', 'childcare', 'health_centre', 'hospital', 'nursing_home'],
+        poi_types=['university', 'school', 'kindergarten', 'college', 'childcare', 'health_centre', 'hospital', 'nursing_home'],
         meters=250,
         grid_path = GRID_PATH
     ) -> None:
 
-        self.pois = pois
+        self.poi_types = poi_types
         self.meters = meters
 
         self.grid_df = pd.read_csv(grid_path, sep=",", encoding="utf-8")
 
         self.grid_df['geometry'] = self.grid_df['geometry'].apply(loads)
-        self.grid_gdf = gpd.GeoDataFrame(self.grid_df, geometry='geometry', crs=CRS_AMSTERDAM)
+        self.grid_gdf = gpd.GeoDataFrame(self.grid_df, geometry='geometry', crs='EPSG:4326')
+
+        self.prio_pois_df = gpd.GeoDataFrame()
 
     def get_distances(
         self,
@@ -33,9 +35,9 @@ class GetPoiDistances():
 
         amenities = self.get_pois(city_name, poi_type)
 
-        self.prio_pois_df = amenities[amenities.amenity.isin(self.pois)]
-        self.prio_pois_df = self.prio_pois_df.set_crs(CRS_AMSTERDAM, allow_override=True)
-        self.grid_gdf = self.grid_gdf.to_crs(CRS_AMSTERDAM)
+        self.prio_pois_df = amenities[amenities.amenity.isin(self.poi_types)][['amenity', 'geometry']]
+        # self.prio_pois_df = self.prio_pois_df.set_crs(CRS_AMSTERDAM, allow_override=True)
+        self.grid_gdf = self.grid_gdf.to_crs('EPSG:4326')
 
         buffer_num = self.meters * (1 / 68000.09)
         self.grid_gdf['buffer'] = self.grid_gdf.geometry.buffer(buffer_num, resolution=16)
@@ -95,3 +97,11 @@ class GetPoiDistances():
             else:
                 return [], []
 
+# count    9022.000000
+# mean        0.002427
+# std         0.005575
+# min         0.000000
+# 25%         0.000000
+# 50%         0.000000
+# 75%         0.000000
+# max         0.057168

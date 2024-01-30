@@ -33,6 +33,10 @@ class MapComponent extends StreamlitComponentBase<State> {
 
   private UI_COLOUR = "#b00927";
 
+  private risk2colour = (risk) => {
+    return risk ? d3.interpolateYlOrRd(risk) : '#AAAAAA'
+  }
+
   private resizeSVG = (svg) => {
     // get container + svg aspect ratio
     const container = d3.select(svg.node().parentNode);
@@ -152,7 +156,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("class", "map_path")
       .attr("d", this.PROJECTION)
       .attr("fill", (d: any) =>
-        d3.interpolateYlOrRd(
+        this.risk2colour(
           risks[d.properties.name][this.state.currentRiskIndex]
         )
       )
@@ -243,7 +247,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("fill", "none")
       .attr("d", this.PROJECTION)
       .style("fill", (d: any) =>
-        d3.interpolateYlOrRd(
+        this.risk2colour(
           risks[d.properties.id][this.state.currentRiskIndex]
         )
       )
@@ -465,7 +469,7 @@ class MapComponent extends StreamlitComponentBase<State> {
         this.setState({ fullGridIsDrawn: false });
         svg.selectAll("#grid_g").remove();
         // svg.selectAll(".map_path").attr("fill", (d: any) =>
-        //   d3.interpolateYlOrRd(risks[d.properties.name][this.state.currentRiskIndex])
+        //   this.risk2colour(risks[d.properties.name][this.state.currentRiskIndex])
         // );
         svg.selectAll("#grid_filter_g").style("visibility", "visible");
       } else {
@@ -498,14 +502,14 @@ class MapComponent extends StreamlitComponentBase<State> {
     svg
       .selectAll(".map_path")
       .attr("fill", (d: any) =>
-        d3.interpolateYlOrRd(
+        this.risk2colour(
           risks_service_areas[d.properties.name][this.state.currentRiskIndex]
         )
       );
     svg
       .selectAll(".grid_path")
       .style("fill", (d: any) =>
-        d3.interpolateYlOrRd(
+        this.risk2colour(
           risks_grid[d.properties.id][this.state.currentRiskIndex]
         )
       );
