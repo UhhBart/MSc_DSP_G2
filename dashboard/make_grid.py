@@ -61,43 +61,44 @@ def check_overlap_percentage(large_polygon_coords, small_polygon_coords):
     return overlap >= 0.5
 
 
-# service_areas = json.load(open('service_areas.geojson'))
-# bounding_box = calculate_bounding_box(service_areas)
-# print(bounding_box)
-# grid_gdf = create_grid_gdf(bounding_box)
+service_areas = json.load(open('service_areas.geojson'))
+bounding_box = calculate_bounding_box(service_areas)
+print(bounding_box)
+grid_gdf = create_grid_gdf(bounding_box)
 
-# # Switch the order to (latitude, longitude) for each polygon
-# grid_gdf['geometry'] = grid_gdf['geometry'].apply(lambda geom: geom.exterior.coords.xy[::-1])
-# grid_gdf['geometry'] = grid_gdf['geometry'].apply(lambda coords: Polygon(zip(coords[0], coords[1])))
+# Switch the order to (latitude, longitude) for each polygon
+grid_gdf['geometry'] = grid_gdf['geometry'].apply(lambda geom: geom.exterior.coords.xy[::-1])
+grid_gdf['geometry'] = grid_gdf['geometry'].apply(lambda coords: Polygon(zip(coords[0], coords[1])))
 
-# grid_gdf['service_area'] = pd.Series([None] * len(grid_gdf), index=grid_gdf.index)
-# grid_gdf = grid_gdf[['service_area', 'geometry']]
+grid_gdf['service_area'] = pd.Series([None] * len(grid_gdf), index=grid_gdf.index)
+grid_gdf = grid_gdf[['service_area', 'geometry']]
 
-# print(grid_gdf.size)
-# for i, row in grid_gdf.iterrows():
-#     for feature in service_areas['features']:
-#         service_area = shape(feature['geometry'])
-#         intersection = service_area.intersection(row['geometry'])
-#         if (intersection.area / row['geometry'].area) >= 0.5:
-#             grid_gdf.loc[i, 'service_area'] = feature['properties']['name']
-#             break
-
-from shapely.wkt import loads
-zipcodes = json.load(open('zipcodes.geojson'))
-grid_df = pd.read_csv('grid_by_hand.csv', sep=",", encoding="utf-8")
-grid_df['geometry'] = grid_df['geometry'].apply(loads)
-grid_gdf = gpd.GeoDataFrame(grid_df, geometry='geometry', crs='EPSG:4326')
-# pc4_code
-
-grid_gdf.drop(columns=['Unnamed: 0'], inplace=True)
-print(grid_gdf.columns)
 print(grid_gdf.size)
 for i, row in grid_gdf.iterrows():
-    for feature in zipcodes['features']:
-        zipcode = shape(feature['geometry'])
-        intersection = zipcode.intersection(row['geometry'])
+    for feature in service_areas['features']:
+        service_area = shape(feature['geometry'])
+        intersection = service_area.intersection(row['geometry'])
         if (intersection.area / row['geometry'].area) >= 0.5:
-            grid_gdf.loc[i, 'zipcode'] = feature['properties']['pc4_code']
+            grid_gdf.loc[i, 'service_area'] = feature['properties']['name']
             break
 
-grid_gdf.to_csv('grid_zipcodes.csv', index=False)
+# Adding zipcodes to existing grid file.
+# from shapely.wkt import loads
+# zipcodes = json.load(open('zipcodes.geojson'))
+# grid_df = pd.read_csv('grid_by_hand.csv', sep=",", encoding="utf-8")
+# grid_df['geometry'] = grid_df['geometry'].apply(loads)
+# grid_gdf = gpd.GeoDataFrame(grid_df, geometry='geometry', crs='EPSG:4326')
+# # pc4_code
+
+# grid_gdf.drop(columns=['Unnamed: 0'], inplace=True)
+# print(grid_gdf.columns)
+# print(grid_gdf.size)
+# for i, row in grid_gdf.iterrows():
+#     for feature in zipcodes['features']:
+#         zipcode = shape(feature['geometry'])
+#         intersection = zipcode.intersection(row['geometry'])
+#         if (intersection.area / row['geometry'].area) >= 0.5:
+#             grid_gdf.loc[i, 'zipcode'] = feature['properties']['pc4_code']
+#             break
+
+grid_gdf.to_csv('grid_by_hand.csv', index=False)
