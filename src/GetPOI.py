@@ -51,7 +51,7 @@ class GetPoiDistances():
 
         self.grid_gdf[['distances', 'poi_indices']] = self.grid_gdf.apply(self.calculate_distances_within_buffer, axis=1, result_type='expand')
 
-        self.grid_gdf['summed_distance'] = [sum(x) if isinstance(x, np.ndarray) or isinstance(x, list) else x for x in self.grid_gdf['distances']]
+        self.grid_gdf['mean_distance'] = [np.mean(x) if isinstance(x, np.ndarray) or isinstance(x, list) else x for x in self.grid_gdf['distances']]
 
         return self.grid_gdf
 

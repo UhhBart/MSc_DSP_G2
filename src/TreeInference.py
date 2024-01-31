@@ -26,7 +26,7 @@ class makeTreePrediction():
     def __init__(
         self,
         model_name,
-        grid_path,
+        grid_df,
         hours_to_predict = 8,
         model_dir = MODEL_DIR
     ):
@@ -34,7 +34,7 @@ class makeTreePrediction():
 
         self.clf = self.load_model(model_path)
         
-        self.grid_df = pd.read_csv(grid_path, sep=",", encoding="utf-8")
+        self.grid_df = grid_df
 
         self.hours_to_predict = hours_to_predict
 
