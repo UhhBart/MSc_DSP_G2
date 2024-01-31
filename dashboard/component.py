@@ -19,12 +19,14 @@ GeoJSON = Dict[str, Any]
 np2darray = np.ndarray
 def map_component(risks: Dict[str, GeoJSON],
                   grid: GeoJSON,
+                  zipcodes: GeoJSON,
                   service_areas: GeoJSON,
                   icons: Dict[str, GeoJSON],
                   map_bg: np2darray,
                   key=None):
     component_value = _component_func(risks=risks,
                                       grid=grid,
+                                      zipcodes=zipcodes,
                                       service_areas=service_areas,
                                       icons=icons,
                                       map_bg=map_bg,

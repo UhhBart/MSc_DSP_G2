@@ -5,7 +5,7 @@ import json
 import shapely.geometry
 from shapely import wkt, reverse
 
-FILE_NAME = 'grid_by_hand'
+FILE_NAME = 'grid_final'
 
 def wkt_to_geojson(wkt_string):
     # Parse WKT string to Shapely geometry
@@ -22,7 +22,8 @@ csv = pd.read_csv(f'{FILE_NAME}.csv')
 for i, row in csv.iterrows():
     shapelyObject = wkt_to_geojson(row['geometry'])
     # features.append(json.dumps({ 'type': 'Feature', 'properties': { 'id': row['id'], 'name': row['service_area'] }, 'geometry': shapelyObject }))
-    features.append(json.dumps({ 'type': 'Feature', 'properties': { 'id': str(row['id']), 'service_area': row['service_area'] }, 'geometry': shapelyObject }))
+    # features.append(json.dumps({ 'type': 'Feature', 'properties': { 'id': str(row['id']), 'service_area': row['service_area'] }, 'geometry': shapelyObject }))
+    features.append(json.dumps({ 'type': 'Feature', 'properties': { 'id': str(row['id']), 'zipcode': str(row['zipcode']), 'service_area': row['service_area'] }, 'geometry': shapelyObject }))
 
 # print(features)
 

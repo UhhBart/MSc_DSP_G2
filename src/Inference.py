@@ -191,13 +191,12 @@ class Inference():
         # if self.model_type == 'trees':
         #     shap_values = self.clf.predict(self.grid_df[FEATURE_COLS[self.model_type]], pred_contribs=True)
         # else:
-        #     print(FEATURE_COLS[self.model_type])
         #     shap_values = self.clf.predict(xgb.DMatrix(self.grid_df[FEATURE_COLS[self.model_type]], enable_categorical=True), pred_contribs=True)
         plot = shap.summary_plot(shap_values, self.lastX, self.get_formatted_colnames(), max_display=10)
         fig, ax = plt.gcf(), plt.gca()
 
         ax.set_title(f'Feature Importance - {MODEL_TYPE_NAMES[self.model_type].capitalize()} Schade', fontsize=16)
-        return plot
+        return (fig, ax)
 
     def get_formatted_colnames(self):
         return [f

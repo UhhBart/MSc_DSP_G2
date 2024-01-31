@@ -41,6 +41,9 @@ def make_dashboard():
         if key not in st.session_state:
             st.session_state[key] = True
 
+    if 'use_pois' not in st.session_state:
+            st.session_state['use_pois'] = False
+
     def set_model_fractions():
         model_fractions = {}
         # {model_name: int(st.session_state['model_use'][model_name]) for model_name in MODEL_NAMES}
@@ -103,7 +106,9 @@ def make_dashboard():
     def load_component_data():
         service_areas: dict = json.load(open('service_areas.geojson'))
 
-        grid: dict = json.load(open('grid_by_hand.geojson'))
+        zipcodes: dict = json.load(open('zipcodes.geojson'))
+
+        grid: dict = json.load(open('grid_final.geojson'))
 
         firestations: dict = json.load(open('firestations.geojson'))
 
@@ -112,12 +117,13 @@ def make_dashboard():
         base64_encoded = base64.b64encode(buffer.tobytes()).decode("utf-8")
 
         return {'grid': grid,
+                'zipcodes': zipcodes,
                 'service_areas': service_areas,
                 'icons': {'firestations': firestations},
                 'map_bg': base64_encoded,}
 
 
-    def get_risks(models, model_names, weather_params, api_dates, service_areas, grid):
+    def get_risks(models, model_names, weather_params, api_dates, service_areas, zipcodes, grid):
         def _aggregate_grid_risks(grid_risks):
             service_areas_risks = {feature['properties']['name']: [] for feature in service_areas['features']}
 
@@ -270,7 +276,7 @@ def make_dashboard():
     component_data = load_component_data()
 
     if 'risks' not in st.session_state:
-        st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['grid'])
+        st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['zipcodes'], component_data['grid'])
 
     component_data['risks'] = st.session_state['risks']
 
@@ -284,6 +290,7 @@ def make_dashboard():
     with col_comp:
         map_return = map_component(component_data['risks'],
                                 component_data['grid'],
+                                component_data['zipcodes'],
                                 component_data['service_areas'],
                                 component_data['icons'],
                                 component_data['map_bg'])
@@ -441,7 +448,7 @@ def make_dashboard():
                                                     'wind_direction_10m': [st.session_state['wind_direction']]
                                                     }
 
-                                    st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, weather_params, (), component_data['service_areas'], component_data['grid'])
+                                    st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, weather_params, (), component_data['service_areas'], component_data['zipcodes'], component_data['grid'])
                                     modal.close()
 
                     with tab_old:
@@ -490,7 +497,7 @@ def make_dashboard():
                             with col_submit:
                                 if st.form_submit_button('Submit', type='primary'):
                                     st.session_state['dates'] = (datetime.datetime.combine(input_dates[0], input_time0), datetime.datetime.combine(input_dates[1], input_time1))
-                                    st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['grid'])
+                                    st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['zipcodes'], component_data['grid'])
                                     modal.close()
 
 
@@ -500,20 +507,21 @@ def make_dashboard():
                         # form submit weather_params = storm_data
 
     with tab_tree:
-        tree_model.get_explainer_plot()
-        # fig, ax = plt.gcf(), plt.gca()
+        plt.clf()
+        fig, ax = tree_model.get_explainer_plot()
 
         # ax.set_title('Feature Importance - Boom Schade', fontsize=16)
-        st.pyplot()
+        st.pyplot(fig)
     # with tab_building:
     #     st.pyplot(building_model.get_explainer_plot())
     with tab_roadsign:
-        # fig, ax = None, None
-        roadsign_model.get_explainer_plot()
+        plt.clf()
+        fig, ax = roadsign_model.get_explainer_plot()
+
         # fig, ax = plt.gcf(), plt.gca()
 
         # ax.set_title('Feature Importance - Overige Schade', fontsize=16)
-        st.pyplot()
+        st.pyplot(fig)
 
     @st.cache_resource
     def make_poi_getter():
@@ -527,10 +535,3 @@ def make_dashboard():
         distances_df = st.session_state['get_poi_distances'].grid_gdf
 
         st.session_state['poi_distances'] = {id: distance for (id, distance) in list(zip(distances_df['id'], distances_df['summed_distance']))}
-
-    POI_distances = st.session_state['get_poi_distances']
-    st.text(POI_distances.grid_gdf.columns)
-    st.dataframe(POI_distances.grid_gdf['summed_distance'].describe())
-    # st.dataframe(POI_distances.grid_gdf[['id', 'summed_distance']])
-    # st.text(POI_distances.prio_pois_df.columns)
-    # st.dataframe(POI_distances.prio_pois_df['amenity'])
