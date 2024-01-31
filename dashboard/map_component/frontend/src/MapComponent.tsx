@@ -464,7 +464,7 @@ class MapComponent extends StreamlitComponentBase<State> {
 
     // const risks = this.props.args["risks"]["service_areas"];
 
-    d3.select("#down_button").on("click", () => {
+    d3.select("#service_area_button").on("click", () => {
       if (this.state.fullGridIsDrawn) {
         this.setState({ fullGridIsDrawn: false });
         svg.selectAll("#grid_g").remove();
@@ -477,7 +477,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       }
     });
 
-    d3.select("#up_button").on("click", () => {
+    d3.select("#grid_button").on("click", () => {
       svg.selectAll("#grid_g").remove();
       // svg.selectAll(".map_path").attr("fill", "none");
       svg.selectAll("#grid_filter_g").style("visibility", "hidden");
@@ -556,8 +556,9 @@ class MapComponent extends StreamlitComponentBase<State> {
               />
               <Flex gap="small" align="right" wrap="wrap" justify="flex-end">
                 <Button id="reset_button">Reset Zoom</Button>
-                <Button id="down_button" icon={<DownSquareOutlined />} />
-                <Button id="up_button" icon={<UpSquareOutlined />} />
+                <Button id="service_area_button"> Verzorgings Gebied </Button>
+                <Button id="zipcode_button"> Postcodes </Button>
+                <Button id="grid_button"> Grid </Button>
               </Flex>
             </Flex>
           </ConfigProvider>

@@ -61,6 +61,12 @@ def make_dashboard():
         set_model_fractions()
         agg_risks = aggregate_model_risks(st.session_state['risks'], MODEL_NAMES)
         st.session_state['risks']['service_areas'] = agg_risks['service_areas']
+        st.session_state['risks']['zipcodes'] = agg_risks['zipcodes']
+        usefull_zipcodes = []
+        for zipcode in agg_risks['zipcodes']:
+            if len(agg_risks['zipcodes'][zipcode]) > 0:
+                usefull_zipcodes.append(zipcode)
+        print(usefull_zipcodes)
         st.session_state['risks']['grid'] = agg_risks['grid']
         return
 
@@ -84,7 +90,7 @@ def make_dashboard():
 
     @st.cache_resource
     def load_building_model():
-        model = Inference(model_name=pathlib.Path('xgboost_model_buildings.pkl'),
+        model = Inference(model_name=pathlib.Path('FINAL_xgboost_model_buildings.pkl'),
                                    model_dir=pathlib.Path('../src/models/buildings/'),
                                    model_type='buildings',
                                    grid_path=pathlib.Path('grid_buildings.csv'))
@@ -123,28 +129,28 @@ def make_dashboard():
                 'map_bg': base64_encoded,}
 
 
+    def _aggregate_grid_risks(grid_risks, scale, empty_areas_dict, grid):
+        area_risks = empty_areas_dict.copy()
+
+        zipped_risks = list(
+                            # zip service_area per grid with risks per grid
+                            zip(
+                                # map grid['features'] to their service_area's
+                                map(lambda feature: feature['properties'][scale],
+                                    grid['features']),
+                                # sort (key, val) on grid_id, then get the risks
+                                [x[1] for x in sorted(list(grid_risks.items()), key=lambda x: int(x[0]))]))
+
+        grouped_risks = groupby(sorted(zipped_risks, key=lambda x: x[0]), key=lambda x: x[0])
+
+        for name, group in grouped_risks:
+            values = [value for _, value in group]
+            if values:
+                area_risks[name] = list(np.mean(values, axis=0))
+
+        return area_risks
+
     def get_risks(models, model_names, weather_params, api_dates, service_areas, zipcodes, grid):
-        def _aggregate_grid_risks(grid_risks):
-            service_areas_risks = {feature['properties']['name']: [] for feature in service_areas['features']}
-
-            zipped_risks = list(
-                                # zip service_area per grid with risks per grid
-                                zip(
-                                    # map grid['features'] to their service_area's
-                                    map(lambda feature: feature['properties']['service_area'],
-                                        grid['features']),
-                                    # sort (key, val) on grid_id, then get the risks
-                                    [x[1] for x in sorted(list(grid_risks.items()), key=lambda x: int(x[0]))]))
-
-            grouped_risks = groupby(sorted(zipped_risks, key=lambda x: x[0]), key=lambda x: x[0])
-
-            for name, group in grouped_risks:
-                values = [value for _, value in group]
-                if values:
-                    service_areas_risks[name] = list(np.mean(values, axis=0))
-
-            return service_areas_risks
-
         def _aggregate_model_risks(risk_dict):
             all_risks = []
             for model_name in model_names:
@@ -162,40 +168,29 @@ def make_dashboard():
         for model_name, model in zip(model_names, models):
             grid_risks = model.get_predictions(weather_params, api_dates)
 
-            service_areas_risks = _aggregate_grid_risks(grid_risks)
+            # remove some service_areas
+            len_risks = len(list(grid_risks.values())[0])
+            to_remove_service_areas = ['Aalsmeer', 'Uithoorn', 'Amstelveen']
+                                    #    , 'Duivendrecht', 'Diemen', 'Driemond', 'Weesp']
+            for feature in grid['features']:
+                if feature['properties']['service_area'] in to_remove_service_areas:
+                    grid_risks[int(feature['properties']['id'])] = [0] * len_risks
+
+            service_areas_risks = _aggregate_grid_risks(grid_risks, 'service_area', {feature['properties']['name']: [] for feature in service_areas['features']}, grid)
 
             risk_dict[model_name] = dict({'service_areas': service_areas_risks, 'grid': grid_risks})
 
         combined_grid_risks = _aggregate_model_risks(risk_dict)
-        combined_service_areas_risks = _aggregate_grid_risks(combined_grid_risks)
+        combined_zipcodes_risks = _aggregate_grid_risks(combined_grid_risks, 'zipcode', {feature['properties']['pc4_code']: [] for feature in zipcodes['features']}, grid)
+        combined_service_areas_risks = _aggregate_grid_risks(combined_grid_risks, 'service_area', {feature['properties']['name']: [] for feature in service_areas['features']}, grid)
 
         risk_dict['grid'] = combined_grid_risks
+        risk_dict['zipcodes'] = combined_zipcodes_risks
         risk_dict['service_areas'] = combined_service_areas_risks
 
         return risk_dict
 
     def aggregate_model_risks(risk_dict, model_names):
-        def _aggregate_grid_risks(grid_risks):
-            service_areas_risks = {feature['properties']['name']: [] for feature in component_data['service_areas']['features']}
-
-            zipped_risks = list(
-                                # zip service_area per grid with risks per grid
-                                zip(
-                                    # map grid['features'] to their service_area's
-                                    map(lambda feature: feature['properties']['service_area'],
-                                        component_data['grid']['features']),
-                                    # sort (key, val) on grid_id, then get the risks
-                                    [x[1] for x in sorted(list(grid_risks.items()), key=lambda x: int(x[0]))]))
-
-            grouped_risks = groupby(sorted(zipped_risks, key=lambda x: x[0]), key=lambda x: x[0])
-
-            for name, group in grouped_risks:
-                values = [value for _, value in group]
-                if values:
-                    service_areas_risks[name] = list(np.mean(values, axis=0))
-
-            return service_areas_risks
-
         all_grid_risks = []
         for model_name in model_names:
             model_grid_risk = risk_dict[model_name]['grid'].copy()
@@ -211,19 +206,10 @@ def make_dashboard():
         for i, key in enumerate(risk_dict[model_names[0]]['grid'].keys()):
             combined_grid_risks[key] = list(combined_grid_risks_list[i])
 
-        combined_service_areas_risks = _aggregate_grid_risks(combined_grid_risks)
+        combined_zipcodes_risks = _aggregate_grid_risks(combined_grid_risks, 'zipcode', {feature['properties']['pc4_code']: [] for feature in component_data['zipcodes']['features']}, component_data['grid'])
+        combined_service_areas_risks = _aggregate_grid_risks(combined_grid_risks, 'service_area', {feature['properties']['name']: [] for feature in component_data['service_areas']['features']}, component_data['grid'])
 
-        # all_service_areas_risks = []
-        # for model_name in model_names:
-        #     all_service_areas_risks.append(list(risk_dict[model_name]['service_areas'].values()))
-
-        # combined_service_areas_risks_list = np.average(all_service_areas_risks, axis=0, weights=list(st.session_state['model_fractions'].values()))
-
-        # combined_service_areas_risks = {}
-        # for i, key in enumerate(risk_dict[model_names[0]]['service_areas'].keys()):
-        #     combined_service_areas_risks[key] = list(combined_service_areas_risks_list[i])
-
-        return {'service_areas': combined_service_areas_risks, 'grid': combined_grid_risks}
+        return {'service_areas': combined_service_areas_risks, 'zipcodes': combined_zipcodes_risks, 'grid': combined_grid_risks}
 
     @st.cache_data
     def calc_risk_ranking(service_areas_risks):
@@ -509,19 +495,18 @@ def make_dashboard():
     with tab_tree:
         plt.clf()
         fig, ax = tree_model.get_explainer_plot()
-
-        # ax.set_title('Feature Importance - Boom Schade', fontsize=16)
         st.pyplot(fig)
-    # with tab_building:
-    #     st.pyplot(building_model.get_explainer_plot())
+
+    with tab_building:
+        plt.clf()
+        fig, ax = building_model.get_explainer_plot()
+        st.pyplot(fig)
+
     with tab_roadsign:
         plt.clf()
         fig, ax = roadsign_model.get_explainer_plot()
-
-        # fig, ax = plt.gcf(), plt.gca()
-
-        # ax.set_title('Feature Importance - Overige Schade', fontsize=16)
         st.pyplot(fig)
+
 
     @st.cache_resource
     def make_poi_getter():

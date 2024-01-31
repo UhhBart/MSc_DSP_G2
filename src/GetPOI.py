@@ -96,12 +96,3 @@ class GetPoiDistances():
                 return distances, poi_indices
             else:
                 return [], []
-
-# count    9022.000000
-# mean        0.002427
-# std         0.005575
-# min         0.000000
-# 25%         0.000000
-# 50%         0.000000
-# 75%         0.000000
-# max         0.057168
