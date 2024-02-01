@@ -30,6 +30,10 @@ FEATURE_COLS = {'trees': ['avg_height', 'avg_year',
     #    ],
        'buildings': ['has_building', 'Gewogen Gemiddeld Bouwjaar', 'wind_gusts_10m'],
 
+    #    'roadsigns':  ['has_roadsign', 'Gemiddelde kijkrichting', 'Gemiddelde hoogte onderkant bord',
+    #                   'wind_gusts_10m', 'wind_direction_10m',
+    #                   'Bouwwerk', 'Buispaal', 'Flespaal', 'Hekwerk', 'Lichtmast', 'Mast',
+    #                   'Muur', 'Overig', 'Portaal', 'Scheiding', 'VRI-Mast']
        'roadsigns':  ['Gemiddelde kijkrichting', 'Gemiddelde hoogte onderkant bord',
                       'wind_gusts_10m', 'wind_direction_10m',
                       'Bouwwerk', 'Buispaal', 'Flespaal', 'Hekwerk', 'Lichtmast',

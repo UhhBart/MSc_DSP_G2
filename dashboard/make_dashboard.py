@@ -62,11 +62,6 @@ def make_dashboard():
         agg_risks = aggregate_model_risks(st.session_state['risks'], MODEL_NAMES)
         st.session_state['risks']['service_areas'] = agg_risks['service_areas']
         st.session_state['risks']['zipcodes'] = agg_risks['zipcodes']
-        usefull_zipcodes = []
-        for zipcode in agg_risks['zipcodes']:
-            if len(agg_risks['zipcodes'][zipcode]) > 0:
-                usefull_zipcodes.append(zipcode)
-        print(usefull_zipcodes)
         st.session_state['risks']['grid'] = agg_risks['grid']
         return
 
@@ -83,7 +78,7 @@ def make_dashboard():
         model = Inference(model_name=pathlib.Path('TEST_xgboost_model_trees.pkl'),
                                    model_dir=pathlib.Path('../src/models/trees/'),
                                    model_type='trees',
-                                   grid_path=pathlib.Path('grid_trees.csv'))
+                                   grid_path=pathlib.Path('grid_trees_no_lines.csv'))
 
         return model
 
@@ -100,6 +95,7 @@ def make_dashboard():
 
     @st.cache_resource
     def load_roadsign_model():
+        # model = Inference(model_name=pathlib.Path('FINAL_xgboost_model_roadsigns.pkl'),
         model = Inference(model_name=pathlib.Path('xgboost_model_roadsigns.pkl'),
                                    model_dir=pathlib.Path('../src/models/roadsigns/'),
                                    model_type='roadsigns',
@@ -112,7 +108,7 @@ def make_dashboard():
     def load_component_data():
         service_areas: dict = json.load(open('service_areas.geojson'))
 
-        zipcodes: dict = json.load(open('zipcodes.geojson'))
+        zipcodes: dict = json.load(open('zipcodes_final.geojson'))
 
         grid: dict = json.load(open('grid_final.geojson'))
 
@@ -176,9 +172,10 @@ def make_dashboard():
                 if feature['properties']['service_area'] in to_remove_service_areas:
                     grid_risks[int(feature['properties']['id'])] = [0] * len_risks
 
+            zipcodes_risks = _aggregate_grid_risks(grid_risks, 'zipcode', {feature['properties']['pc4_code']: [] for feature in zipcodes['features']}, grid)
             service_areas_risks = _aggregate_grid_risks(grid_risks, 'service_area', {feature['properties']['name']: [] for feature in service_areas['features']}, grid)
 
-            risk_dict[model_name] = dict({'service_areas': service_areas_risks, 'grid': grid_risks})
+            risk_dict[model_name] = dict({'service_areas': service_areas_risks, 'zipcodes': zipcodes_risks, 'grid': grid_risks})
 
         combined_grid_risks = _aggregate_model_risks(risk_dict)
         combined_zipcodes_risks = _aggregate_grid_risks(combined_grid_risks, 'zipcode', {feature['properties']['pc4_code']: [] for feature in zipcodes['features']}, grid)
@@ -212,40 +209,43 @@ def make_dashboard():
         return {'service_areas': combined_service_areas_risks, 'zipcodes': combined_zipcodes_risks, 'grid': combined_grid_risks}
 
     @st.cache_data
-    def calc_risk_ranking(service_areas_risks):
+    def calc_risk_ranking(service_areas_risks, tree_risks, building_risks, roadsign_risks):
         mean_risks = []
 
-        for item in service_areas_risks:
-            service_area = item[0]
-            risk_values = item[1]
-            mean_value = sum(risk_values) / len(risk_values) if len(risk_values) > 0 else 0.0
-            mean_risks.append((service_area, mean_value))
+        for items in zip(service_areas_risks, tree_risks, building_risks, roadsign_risks):
+            service_area = items[0][0]
+            risk_lists = [item[1] for item in items]
+            mean_values = [sum(risk_values) / len(risk_values) if len(risk_values) > 0 else 0.0 for risk_values in risk_lists]
+            mean_risks.append((service_area, *mean_values))
 
 
 
-        risk_ranking = pd.DataFrame(mean_risks, columns=['service_area', 'risk'])
+        print(mean_risks)
+
+        risk_ranking = pd.DataFrame(mean_risks, columns=['service_area', 'risk', 'trees', 'buildings', 'roadsigns'])
         risk_ranking = risk_ranking.sort_values(by='risk', ascending=False)
 
         risk_ranking = risk_ranking.reset_index(drop=True)
         risk_ranking.index += 1
 
-        risk_ranking['trees'] = risk_ranking['risk'] + 0.0444
-        risk_ranking['buildings'] = risk_ranking['risk'] - 0.0333
-        risk_ranking['rest'] = risk_ranking['risk'] - 0.0111
+        # risk_ranking['trees'] = risk_ranking['risk'] + 0.0444
+        # risk_ranking['buildings'] = risk_ranking['risk'] - 0.0333
+        # risk_ranking['roadsigns'] = risk_ranking['risk'] - 0.0111
 
         risk_ranking = risk_ranking.rename(columns=
                                         {'service_area': 'Verzorgingsgebied',
                                             'risk': 'Risico',
                                             'trees': 'Bomen',
                                             'buildings': 'Gebouwen',
-                                            'rest': 'Overig'})
+                                            'roadsigns': 'Overig'})
 
         risk_ranking_html = risk_ranking.to_html()
         risk_ranking_html = '<h1>Voorspelde risico per verzorgingsgebied</h1>' \
                         + f'<h3>gemaakt op: {str(datetime.date.today())}</h3>' \
-                        + f'<h3>methode: custom storm</h3>' \
-                        + f'<h3>storm data: ...</h3>' \
                         + risk_ranking_html
+                        # + f'<h3>methode: custom storm</h3>' \
+                        # + f'<h3>storm data: ...</h3>' \
+                        # + risk_ranking_html
 
 
         risk_ranking_pdf = pdf.from_string(risk_ranking_html)
@@ -303,6 +303,26 @@ def make_dashboard():
                             <br> **Gebruik** **POI**: {"ja" if st.session_state['use_pois'] else "nee"}
                             ''',
                             unsafe_allow_html=True)
+        elif map_return['type'] == 'zipcode':
+            selected_area = map_return['name']
+            if selected_area in component_data['risks']['zipcodes']:
+                risks = component_data['risks']['zipcodes'][selected_area]
+                tree_risks = component_data['risks']['trees']['zipcodes'][selected_area]
+                building_risks = component_data['risks']['buildings']['zipcodes'][selected_area]
+                roadsign_risks = component_data['risks']['roadsigns']['zipcodes'][selected_area]
+                mean_risk = sum(risks) / len(risks)
+                mean_tree_risk = sum(tree_risks) / len(tree_risks)
+                mean_building_risk = sum(building_risks) / len(building_risks)
+                mean_roadsign_risk = sum(roadsign_risks) / len(roadsign_risks)
+
+                st.markdown(f'''
+                            **Postcode** **{selected_area}** (gemiddeld), **Risico**:{mean_risk:.2f}
+                            <br> **Bomen**: {mean_tree_risk:.2f}
+                            <br> **Gebouwen**: {mean_building_risk:.2f}
+                            <br> **Overig**: {mean_roadsign_risk:.2f}
+                            <br> **Gebruik** **POI**: {"ja" if st.session_state['use_pois'] else "nee"}
+                            ''',
+                            unsafe_allow_html=True)
         elif map_return['type'] == 'grid':
             selected_area = map_return['name']
             selected_grid = int(map_return['id'])
@@ -337,7 +357,10 @@ def make_dashboard():
 
 
         risk_ranking, risk_ranking_html, risk_ranking_pdf, risk_ranking_csv = \
-            calc_risk_ranking(list(component_data['risks']['service_areas'].items()))
+            calc_risk_ranking(list(component_data['risks']['service_areas'].items()),
+                              list(component_data['risks']['trees']['service_areas'].items()),
+                              list(component_data['risks']['buildings']['service_areas'].items()),
+                              list(component_data['risks']['roadsigns']['service_areas'].items()))
 
 
         tab_text, tab_tree, tab_building, tab_roadsign = st.tabs(['Risico Ranking', 'Bomen', 'Gebouwen', 'Overig'])

@@ -34,8 +34,8 @@ class MapComponent extends StreamlitComponentBase<State> {
   private UI_COLOUR = "#b00927";
 
   private risk2colour = (risk) => {
-    return risk ? d3.interpolateYlOrRd(risk) : '#AAAAAA'
-  }
+    return risk ? d3.interpolateYlOrRd(risk) : "#AAAAAA";
+  };
 
   private resizeSVG = (svg) => {
     // get container + svg aspect ratio
@@ -128,37 +128,22 @@ class MapComponent extends StreamlitComponentBase<State> {
     return [adjustedCoordinates];
   }
 
-  private draw_map(zoom) {
+  private draw_service_areas(zoom) {
     const shape = this.props.args["service_areas"],
       risks = this.props.args["risks"]["service_areas"],
       svg: any = d3.select("#map_svg"),
       tooltip = d3.select("#tooltip");
 
-    const background_rect = svg
-      .append("rect")
-      .style("width", "100%")
-      .style("height", "100%")
-      .style("opacity", 0)
-      .on("click", (event) => {
-        if (event.ctrlKey || event.metaKey) {
-          svg.selectAll("#grid_filter_g").remove();
-        } else {
-          d3.select("#selected_area").style("visibility", "hidden");
-        }
-      });
-
     svg
       .append("g")
-      .attr("id", "map_g")
+      .attr("id", "service_area_g")
       .selectAll("path")
       .data(shape.features)
       .join("path")
-      .attr("class", "map_path")
+      .attr("class", "service_area_path")
       .attr("d", this.PROJECTION)
       .attr("fill", (d: any) =>
-        this.risk2colour(
-          risks[d.properties.name][this.state.currentRiskIndex]
-        )
+        this.risk2colour(risks[d.properties.name][this.state.currentRiskIndex])
       )
       .style("opacity", 0.65)
       .style("stroke", "#222222")
@@ -211,11 +196,76 @@ class MapComponent extends StreamlitComponentBase<State> {
         tooltip.style("opacity", 0);
       });
 
+    return;
+  }
+
+  private draw_zipcodes(zoom) {
+    const shape = this.props.args["zipcodes"],
+      risks = this.props.args["risks"]["zipcodes"],
+      svg: any = d3.select("#map_svg"),
+      tooltip = d3.select("#tooltip");
+
     svg
       .append("g")
-      .attr("id", "selected_g")
-      .append("path")
-      .attr("id", "selected_area");
+      .attr("id", "zipcode_g")
+      .selectAll("path")
+      .data(shape.features)
+      .join("path")
+      .attr("class", "zipcode_path")
+      .attr("d", this.PROJECTION)
+      .attr("fill", (d: any) =>
+        this.risk2colour(risks[d.properties.pc4_code][this.state.currentRiskIndex])
+      )
+      .style("opacity", 0.65)
+      .style("stroke", "#222222")
+      .style("stroke-width", 1.5)
+      .on("click", (event, d) => {
+        if (event.ctrlKey || event.metaKey) {
+          // svg
+          //   .transition()
+          //   .duration(500)
+          //   .call(zoom.transform, this.SERVICE_AREA_ZOOMS[d.properties.name]);
+          // svg.selectAll("#grid_filter_g").remove();
+          // this.draw_grid(
+          //   zoom,
+          //   (f) => f.properties.service_area === d.properties.name
+          // );
+          // d3.select("#selected_g").raise();
+        } else {
+          Streamlit.setComponentValue({
+            id: d.properties.pc4_code,
+            name: d.properties.pc4_code,
+            type: "zipcode"
+          });
+          d3.select("#selected_g").raise();
+          d3.select("#selected_area")
+            .datum(d)
+            .attr("class", "selected_path")
+            .attr("d", this.PROJECTION)
+            .attr("fill", "none")
+            .style("stroke", "#111111")
+            .style("stroke-width", 2.5)
+            .style("opacity", 1)
+            .style("visibility", "visible")
+            .attr("pointer-events", "none")
+            .attr("transform", d3.zoomTransform(svg.node()).toString());
+        }
+      })
+      .on("mouseover", () => {
+        tooltip.style("opacity", 1);
+      })
+      .on("mousemove", (event, d) => {
+        tooltip
+          .html(
+            `Verzorgings gebied: ${d.properties.pc4_code}<br/>
+                Schade Risico: ${risks[d.properties.pc4_code][this.state.currentRiskIndex].toFixed(2)}`
+          )
+          .style("top", event.pageY - 10 + "px")
+          .style("left", event.pageX + 10 + "px");
+      })
+      .on("mouseleave", () => {
+        tooltip.style("opacity", 0);
+      });
 
     return;
   }
@@ -247,9 +297,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .attr("fill", "none")
       .attr("d", this.PROJECTION)
       .style("fill", (d: any) =>
-        this.risk2colour(
-          risks[d.properties.id][this.state.currentRiskIndex]
-        )
+        this.risk2colour(risks[d.properties.id][this.state.currentRiskIndex])
       )
       .style("opacity", opacity)
       .on("click", (event, d) => {
@@ -303,7 +351,7 @@ class MapComponent extends StreamlitComponentBase<State> {
     return;
   }
 
-  private draw_icons(zoom?) {
+  private draw_icons() {
     const shapes: Object = this.props.args["icons"],
       svg: any = d3.select("#map_svg");
 
@@ -355,11 +403,31 @@ class MapComponent extends StreamlitComponentBase<State> {
       .style("height", height)
       .call(this.resizeSVG);
 
+    svg
+      .append("rect")
+      .attr("id", "bg_rect")
+      .style("width", "100%")
+      .style("height", "100%")
+      .style("opacity", 0)
+      .on("click", (event) => {
+        if (event.ctrlKey || event.metaKey) {
+          svg.selectAll("#grid_filter_g").remove();
+        } else {
+          d3.select("#selected_area").style("visibility", "hidden");
+        }
+      });
+
+    svg
+      .append("g")
+      .attr("id", "selected_g")
+      .append("path")
+      .attr("id", "selected_area");
+
     const BG_TRANSFORM = this.BG_TRANSFORM;
 
     function zoomFunc(e: any) {
       console.log(e.transform);
-      d3.selectAll(".map_path, .grid_path, .selected_path, .icon_path").attr(
+      d3.selectAll(".service_area_path, .zipcode_path, .grid_path, .selected_path, .icon_path").attr(
         "transform",
         e.transform
       );
@@ -403,7 +471,9 @@ class MapComponent extends StreamlitComponentBase<State> {
       .style("height", 500)
       .attr("transform", this.BG_TRANSFORM);
 
-    this.draw_map(zoom);
+    this.draw_service_areas(zoom);
+    this.draw_zipcodes(zoom);
+    svg.selectAll("#zipcode_g").style("visibility", "hidden");
 
     this.draw_icons();
 
@@ -468,18 +538,34 @@ class MapComponent extends StreamlitComponentBase<State> {
       if (this.state.fullGridIsDrawn) {
         this.setState({ fullGridIsDrawn: false });
         svg.selectAll("#grid_g").remove();
-        // svg.selectAll(".map_path").attr("fill", (d: any) =>
-        //   this.risk2colour(risks[d.properties.name][this.state.currentRiskIndex])
-        // );
         svg.selectAll("#grid_filter_g").style("visibility", "visible");
       } else {
         svg.selectAll("#grid_filter_g").remove();
       }
+      svg.selectAll("#zipcode_g").style("visibility", "hidden");
+      svg.selectAll("#service_area_g").style("visibility", "visible");
+
+      d3.select("#selected_g").raise();
+      d3.select(".icon_g").raise();
+    });
+
+    d3.select("#zipcode_button").on("click", () => {
+      if (this.state.fullGridIsDrawn) {
+        this.setState({ fullGridIsDrawn: false });
+        svg.selectAll("#grid_g").remove();
+        svg.selectAll("#grid_filter_g").style("visibility", "visible");
+      } else {
+        svg.selectAll("#grid_filter_g").remove();
+      }
+      svg.selectAll("#service_area_g").style("visibility", "hidden");
+      svg.selectAll("#zipcode_g").style("visibility", "visible");
+
+      d3.select("#selected_g").raise();
+      d3.select(".icon_g").raise();
     });
 
     d3.select("#grid_button").on("click", () => {
       svg.selectAll("#grid_g").remove();
-      // svg.selectAll(".map_path").attr("fill", "none");
       svg.selectAll("#grid_filter_g").style("visibility", "hidden");
       this.draw_grid(zoom);
       const existingTransform = d3.zoomTransform(svg.node());
@@ -487,7 +573,9 @@ class MapComponent extends StreamlitComponentBase<State> {
         "transform",
         existingTransform.toString()
       );
+
       d3.select("#selected_g").raise();
+      d3.select(".icon_g").raise();
     });
 
     Streamlit.setFrameHeight();
@@ -497,13 +585,21 @@ class MapComponent extends StreamlitComponentBase<State> {
     console.log("update");
     const svg: any = d3.select("#map_svg").call(this.resizeSVG),
       risks_service_areas = this.props.args["risks"]["service_areas"],
+      risks_zipcodes = this.props.args["risks"]["zipcodes"],
       risks_grid = this.props.args["risks"]["grid"];
 
     svg
-      .selectAll(".map_path")
+      .selectAll(".service_area_path")
       .attr("fill", (d: any) =>
         this.risk2colour(
           risks_service_areas[d.properties.name][this.state.currentRiskIndex]
+        )
+      );
+    svg
+      .selectAll(".zipcode_path")
+      .attr("fill", (d: any) =>
+        this.risk2colour(
+          risks_zipcodes[d.properties.pc4_code][this.state.currentRiskIndex]
         )
       );
     svg
@@ -521,7 +617,14 @@ class MapComponent extends StreamlitComponentBase<State> {
     return (
       <span>
         <div id="svg_div" />
-        <div id="contols_div" style={{ textAlign: "right", paddingLeft: "1em", paddingRight: "1em" }}>
+        <div
+          id="contols_div"
+          style={{
+            textAlign: "right",
+            paddingLeft: "1em",
+            paddingRight: "1em"
+          }}
+        >
           <ConfigProvider
             theme={{
               components: {
@@ -548,11 +651,21 @@ class MapComponent extends StreamlitComponentBase<State> {
             }}
           >
             <Flex gap="small" vertical>
+              <Flex justify="flex-start">
+                Uren vooruit voorspeld:
+              </Flex>
               <Slider
-                defaultValue={0}
-                min={0}
-                max={this.props.args["risks"]["service_areas"][Object.keys(this.props.args["risks"]["service_areas"])[0]].length - 1}
+                id="time_slider"
+                defaultValue={1}
+                min={1}
+                max={
+                  this.props.args["risks"]["service_areas"][
+                    Object.keys(this.props.args["risks"]["service_areas"])[0]
+                  ].length
+                }
                 onChange={this.sliderOnChange}
+                dots
+                tipFormatter={(t) => `+${t} uur`}
               />
               <Flex gap="small" align="right" wrap="wrap" justify="flex-end">
                 <Button id="reset_button">Reset Zoom</Button>
@@ -568,8 +681,7 @@ class MapComponent extends StreamlitComponentBase<State> {
   };
 
   private sliderOnChange = (value: number) => {
-    console.log("onChange: ", value);
-    this.setState({ currentRiskIndex: value });
+    this.setState({ currentRiskIndex: value - 1});
   };
 }
 export default withStreamlitConnection(MapComponent);
