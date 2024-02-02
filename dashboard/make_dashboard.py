@@ -20,6 +20,12 @@ def make_dashboard():
     from Inference import Inference
     from GetPOI import GetPoiDistances
 
+    PREDICTION_TYPE_WEATHER_FORECAST = 0
+    PREDICTION_TYPE_CUSTOM_STORM = 1
+
+    WIND_DIRS = [0, 45, 90, 135, 180, 225, 270, 315]
+    WIND_STRING_DICT = {0: 'N', 45: 'NO', 90: 'O', 135: 'ZO', 180: 'Z', 225: 'ZW', 270: 'W', 315: 'NW'}
+
     if 'temperature' not in st.session_state:
         st.session_state['wind_gusts'] = 90
     if 'wind_direction' not in st.session_state:
@@ -31,6 +37,8 @@ def make_dashboard():
     if 'precipitation' not in st.session_state:
         st.session_state['precipitation'] = 5
 
+    if 'prediction_type' not in st.session_state:
+        st.session_state['prediction_type'] = PREDICTION_TYPE_WEATHER_FORECAST
     if 'dates' not in st.session_state:
         now = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
         st.session_state['dates'] = (now, now + datetime.timedelta(hours=10))
@@ -69,7 +77,16 @@ def make_dashboard():
         set_model_fractions()
 
     st.title('Brandweer Amsterdam')
-    st.markdown(f'Voorspelling van **{st.session_state["dates"][0].strftime("%Y-%m-%d %H:%M")}** tot **{st.session_state["dates"][1].strftime("%Y-%m-%d %H:%M")}**')
+    if st.session_state['prediction_type'] == PREDICTION_TYPE_WEATHER_FORECAST:
+        st.markdown(f'Voorspelling van **{st.session_state["dates"][0].strftime("%Y-%m-%d %H:%M")}** tot **{st.session_state["dates"][1].strftime("%Y-%m-%d %H:%M")}**')
+    elif st.session_state['prediction_type'] == PREDICTION_TYPE_CUSTOM_STORM:
+        st.markdown(f'**Eigen storm:**\
+                    Temperatuur: **{st.session_state["temperature"]}**\
+                    Wind Richting: **{WIND_STRING_DICT[st.session_state["wind_direction"]]}**\
+                    Wind Snelheid: **{st.session_state["wind_speed"]}km/u**\
+                    Wind Stoten: **{st.session_state["wind_gusts"]}km/u**\
+                    Neerslag: **{st.session_state["precipitation"]}mm/u**'
+                    )
 
 
     @st.cache_resource
@@ -219,18 +236,11 @@ def make_dashboard():
             mean_risks.append((service_area, *mean_values))
 
 
-
-        print(mean_risks)
-
         risk_ranking = pd.DataFrame(mean_risks, columns=['service_area', 'risk', 'trees', 'buildings', 'roadsigns'])
         risk_ranking = risk_ranking.sort_values(by='risk', ascending=False)
 
         risk_ranking = risk_ranking.reset_index(drop=True)
         risk_ranking.index += 1
-
-        # risk_ranking['trees'] = risk_ranking['risk'] + 0.0444
-        # risk_ranking['buildings'] = risk_ranking['risk'] - 0.0333
-        # risk_ranking['roadsigns'] = risk_ranking['risk'] - 0.0111
 
         risk_ranking = risk_ranking.rename(columns=
                                         {'service_area': 'Verzorgingsgebied',
@@ -408,17 +418,14 @@ def make_dashboard():
 
                             st.session_state['temperature'] =  col_temp.select_slider('Temperatuur', options=list(range(-20, 41, 5)), value=temperature)
 
-                            # wind_dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-                            wind_dirs = [0, 45, 90, 135, 180, 225, 270, 315]
-                            wind_string_dict = {0: 'N', 45: 'NO', 90: 'O', 135: 'ZO', 180: 'Z', 225: 'ZW', 270: 'W', 315: 'NW'}
                             wind_dir_index = 0
                             if 'wind_direction' in st.session_state:
-                                wind_dir_index = wind_dirs.index(st.session_state['wind_direction'])
+                                wind_dir_index = WIND_DIRS.index(st.session_state['wind_direction'])
 
                             st.session_state['wind_direction'] = col_wind_direction.selectbox('Kies Wind Richting',
-                                                                        wind_dirs,
+                                                                        WIND_DIRS,
                                                                         index=wind_dir_index,
-                                                                        format_func=lambda w: wind_string_dict[w])
+                                                                        format_func=lambda w: WIND_STRING_DICT[w])
 
 
                             wind_speed = 40
@@ -458,6 +465,7 @@ def make_dashboard():
                                                     }
 
                                     st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, weather_params, (), component_data['service_areas'], component_data['zipcodes'], component_data['grid'])
+                                    st.session_state['prediction_type'] = PREDICTION_TYPE_CUSTOM_STORM
                                     modal.close()
 
                     with tab_old:
@@ -507,6 +515,7 @@ def make_dashboard():
                                 if st.form_submit_button('Submit', type='primary'):
                                     st.session_state['dates'] = (datetime.datetime.combine(input_dates[0], input_time0), datetime.datetime.combine(input_dates[1], input_time1))
                                     st.session_state['risks'] = get_risks([tree_model, building_model, roadsign_model], MODEL_NAMES, {}, st.session_state['dates'], component_data['service_areas'], component_data['zipcodes'], component_data['grid'])
+                                    st.session_state['prediction_type'] = PREDICTION_TYPE_WEATHER_FORECAST
                                     modal.close()
 
 

@@ -257,7 +257,7 @@ class MapComponent extends StreamlitComponentBase<State> {
       .on("mousemove", (event, d) => {
         tooltip
           .html(
-            `Verzorgings gebied: ${d.properties.pc4_code}<br/>
+            `Postcode: ${d.properties.pc4_code}<br/>
                 Schade Risico: ${risks[d.properties.pc4_code][this.state.currentRiskIndex].toFixed(2)}`
           )
           .style("top", event.pageY - 10 + "px")
