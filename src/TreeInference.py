@@ -12,14 +12,9 @@ GRID_ENRICHED_PATH = Path("data_bomen/grid_enriched_200_new.csv")
 
 LOCATION = ("4.890439", "52.369496")
 
-FEATURE_COLS = ['avg_height', 'avg_year', 'has_tree',
-       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
-       'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
-       'Ulmus', 'Carpinus', 'Overig', 'Onbekend', 'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
-       'apparent_temperature', 'precipitation', 'rain', 'snowfall',
-       'snow_depth', 'weather_code', 'pressure_msl', 'surface_pressure',
-       'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m',
-       ]
+FEATURE_COLS = ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m',
+       'average_soil_moisture', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
+       'Ulmus', 'Carpinus', 'Overig', 'Onbekend']
 
 
 class makeTreePrediction():
