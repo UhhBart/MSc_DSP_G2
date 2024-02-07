@@ -12,8 +12,7 @@ GRID_ENRICHED_PATH = Path("data_bomen/grid_enriched_200_new.csv")
 
 LOCATION = ("4.890439", "52.369496")
 
-FEATURE_COLS = ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m',
-       'average_soil_moisture', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
+FEATURE_COLS = ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
        'Ulmus', 'Carpinus', 'Overig', 'Onbekend']
 
 

@@ -25,7 +25,7 @@ ZIPCODE_JSON_PATH = DATA_DIR / "zipcodes_boxes.json"
 
 GRID_SIZE = 200     ## GRID SIZE IN METERS
 TREE_DATA_CLEAN_PATH = DATA_DIR / f"tree_geo_data_clean_{str(GRID_SIZE)}.csv"
-GRID_DATA_PATH = DATA_DIR / f"grid_TEST2_enriched.csv"
+GRID_DATA_PATH = DATA_DIR / f"grids_enriched_NEW.csv"
 INCIDENTS_WEATHER_PATH = DATA_DIR / "incidents_weather.csv"
 INCIDENTS_WEATHER_GEO_PATH = DATA_DIR / f"incidents_weather_geo_{GRID_SIZE}.csv"
 
@@ -52,6 +52,9 @@ TREE_COLUMNS = [
     "location",
     "grid_id",
 ]
+
+TREE_NAMES = ['Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
+       'Ulmus', 'Carpinus', 'Overig', 'Onbekend']
 
 MAP_BOOMHOOGTE = {
     'a. tot 6 m.' : "0-6",
@@ -127,6 +130,7 @@ RF_GRID_COLUMNS = [
     "avg_height",
     "avg_diameter",
     'avg_year',
+    'num_trees',
     'Fraxinus', 
     'Salix', 
     'Alnus', 
@@ -145,6 +149,8 @@ RF_GRID_COLUMNS = [
     'Overig', 
     'Onbekend'
 ]
+
+
 
 def create_grid_gdf():
     geolocator = Nominatim(user_agent="my_geocoder")
@@ -290,7 +296,9 @@ def save_data(tree_gdf, incident_gdf, grid_gdf):
     incident_gdf.to_csv(INCIDENTS_WEATHER_GEO_PATH, sep=",", encoding="utf-8", index=False)
 
     # clean and save data
-    grid_gdf = grid_gdf.fillna(0)
+
+    grid_gdf[RF_GRID_COLUMNS] = grid_gdf[RF_GRID_COLUMNS].fillna(value=0)
+
     # grid_gdf[grid_gdf.has_tree == True]
     grid_gdf.to_csv(GRID_DATA_PATH, sep=",", encoding="utf-8", index=False)
 
@@ -317,7 +325,7 @@ def main():
     tree_df = pd.read_csv(TREE_DATA_PATH, sep=",", encoding="utf-8")
     incidents_weather_df = pd.read_csv(INCIDENTS_WEATHER_PATH, sep=",", encoding="utf-8")
     # grid_gdf = create_grid_gdf()
-    grid_df = pd.read_csv("final_data/grids/test_grids.csv", sep=",", encoding="utf-8")
+    grid_df = pd.read_csv("final_data/grids/grid_final_NEW.csv", sep=",", encoding="utf-8")
     grid_df = grid_df.rename(columns={'id': 'grid_id'})
     grid_gdf = gpd.GeoDataFrame(grid_df, geometry=gpd.GeoSeries.from_wkt(grid_df['geometry']), crs="EPSG:4326")
 
@@ -334,9 +342,12 @@ def main():
     tree_gdf['stamdiameter'] = [MAP_STAMDIAMETER[klasse] if not klasse is np.nan else np.nan for klasse in tree_gdf.stamdiameterklasse.values]
 
     # get rid of unnecessary columns
-    tree_gdf = tree_gdf[TREE_COLUMNS]
+    # tree_gdf = tree_gdf[RF_GRID_COLUMNS]
 
     grid_gdf, tree_gdf = enrich_grid_df(grid_gdf=grid_gdf, tree_gdf=tree_gdf)
+
+        # create num trees col
+    grid_gdf['num_trees'] = grid_gdf[TREE_NAMES].sum(axis=1)
 
     #convert to datetime
     incident_gdf.Date = pd.to_datetime(incident_gdf.Date)
@@ -344,20 +355,23 @@ def main():
 
     # save data
     save_data(tree_gdf=tree_gdf, incident_gdf=incident_gdf, grid_gdf=grid_gdf)
-    # positive_samples = create_save_positives(incident_gdf=incident_gdf, tree_gdf=tree_gdf, grid_gdf=grid_gdf)
-    # neg_sampler = NegativeSampler(has_column='has_tree', has_tree=False, random_dates=True, random_grid=True)
-    # negative_samples = neg_sampler.sample_negatives(incidents_weather_df, positive_samples, grid_gdf)
 
-    # negatives_path = f"{FINAL_DATA_DIR}/trees_new_grid_neg_samples_random.csv"
-    # positives_path = f"{FINAL_DATA_DIR}/trees_new_grid_pos_samples.csv"
+    # sample positives
+    positive_samples = create_save_positives(incident_gdf=incident_gdf, tree_gdf=tree_gdf, grid_gdf=grid_gdf)
+    # sample negatives
+    neg_sampler = NegativeSampler(has_column='has_tree', has_tree=False, random_dates=True, random_grid=True)
+    negative_samples = neg_sampler.sample_negatives(incidents_weather_df, positive_samples, grid_gdf)
 
-    # negative_samples.to_csv(negatives_path, sep=",", encoding="utf-8", index="False")
+    negatives_path = f"{FINAL_DATA_DIR}/trees_new_grid_neg_samples_random.csv"
+    positives_path = f"{FINAL_DATA_DIR}/trees_new_grid_pos_samples.csv"
 
-    # weather_getter = GetWeather(grid_path=GRID_DATA_PATH, samples_path=negatives_path, sleep_time=90)  
-    # negative_samples = weather_getter.add_weather_data()
+    negative_samples.to_csv(negatives_path, sep=",", encoding="utf-8", index="False")
 
-    # negative_samples.to_csv(negatives_path, sep=",", encoding="utf-8", index="False")
-    # # positive_samples.to_csv(positives_path, sep=",", encoding="utf-8", index="False")
+    weather_getter = GetWeather(grid_path=GRID_DATA_PATH, samples_path=negatives_path, sleep_time=90)  
+    negative_samples = weather_getter.add_weather_data()
+
+    negative_samples.to_csv(negatives_path, sep=",", encoding="utf-8", index="False")
+    # positive_samples.to_csv(positives_path, sep=",", encoding="utf-8", index="False")
 
 if __name__ == "__main__":
     main()
