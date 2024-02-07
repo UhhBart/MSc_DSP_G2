@@ -15,28 +15,23 @@ GRID_ENRICHED_PATH = Path('data_bomen/grid_enriched_200_new.csv')
 
 LOCATION = ('4.890439', '52.369496')
 
-FEATURE_COLS = ['avg_height', 'avg_year', 'has_tree', 'num_trees',
-       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
-       'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
-       'Ulmus', 'Carpinus', 'Overig', 'Onbekend', 'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
-       'apparent_temperature', 'precipitation', 'rain', 'snowfall',
-       'snow_depth', 'weather_code', 'pressure_msl', 'surface_pressure',
-       'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m',
-       ]
+FEATURE_COLS = ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
+       'Ulmus', 'Carpinus', 'Overig', 'Onbekend']
 
 
 class makeTreePrediction():
     def __init__(
         self,
         model_name,
-        grid_path = GRID_ENRICHED_PATH,
+        grid_df,
+        hours_to_predict = 8,
         model_dir = MODEL_DIR
     ):
         model_path = model_dir / model_name
 
         self.clf = self.load_model(model_path)
-
-        self.grid_df = pd.read_csv(grid_path, sep=',', encoding='utf-8')
+        
+        self.grid_df = grid_df
 
         self.lastX = []
 

@@ -31,8 +31,8 @@ INCIDENTS_WEATHER_GEO_PATH = DATA_DIR_ROADSIGNS / f"incidents_weather_geo_roadsi
 GRID_DATA_PATH = DATA_DIR_ROADSIGNS / f"grid_enriched_roadsigns_{GRID_SIZE}.csv"
 INCIDENT_DATA_PATH = DATA_DIR_BOMEN / 'Incidenten_oorspronkelijk_volledig.csv'
 
-POSITIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"positive_samples_roadsigns_{GRID_SIZE}.csv"
-NEGATIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"negative_samples_roadsigns_{GRID_SIZE}.csv"
+POSITIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"TMP3_positive_samples_roadsigns_{GRID_SIZE}.csv"
+NEGATIVE_SAMPLES_PATH = DATA_DIR_ROADSIGNS / f"TMP3_negative_samples_roadsigns_{GRID_SIZE}.csv"
 
 ZIP_KEY = "Zipcode"
 ZIP4_KEY = "Zip4"
@@ -187,15 +187,56 @@ def verify_sample(incidents, grid_id, date, window=DATE_WINDOW):
     grids = incidents[(incidents['Date'] >= start_date) & (incidents['Date'] <= end_date)].values
     return False if grid_id not in grids else True
 
-grids_with_roadsign = list(grids[grids.has_roadsign == True].grid_id.values)
+grids_with_building = list(grids[grids.has_roadsign == True].grid_id.values) 
 negatives = positive_samples[['Date', 'Hour']]
 negatives[GRID_COLUMNS] = None
 
+# SAMPLE RANDOM DATES +
+RANDOM_START_DATE = datetime.datetime(2022, 1, 1)
+RANDOM_END_DATE = datetime.datetime(2023, 12, 31)
+
+def sample_random_dates(num_samples, start_date = RANDOM_START_DATE, end_date = RANDOM_END_DATE):
+    dates = []
+    hours = []
+
+    for _ in range(num_samples):
+        random_datetime = start_date + datetime.timedelta(
+            days=random.randint(0, (end_date - start_date).days),   # sample from 2022-2023
+            hours=random.randint(6, 22)                             # sample between 0600-2200
+        )
+        dates.append(random_datetime.date())
+        hours.append(random_datetime.hour)
+
+    date_df = pd.DataFrame({'Date': dates, 'Hour': hours})
+    return date_df
+
+# CUSTOMIZE 
+incidents = incidents
+positives = positive_samples
+grid = grids
+has_column = 'has_roadsign'
+has_roadsign =  True
+window=5
+random_dates=True, 
+random_grid=True
+
+if random_grid:
+    grids_to_sample = list(grid.grid_id.values)
+else:
+    grids_to_sample = list(grid[grid[has_column] == has_roadsign].grid_id.values)
+
+# if sample random dates
+if random_dates:
+    negatives = sample_random_dates(num_samples=len(positives))
+else:
+    negatives = positives[['Date', 'Hour']]
+    
+negatives[GRID_COLUMNS] = None
 for i, row in negatives.iterrows():
-    random_grid = random.sample(grids_with_roadsign, 1)[0]
-    while(verify_sample(incidents, random_grid, row.Date)):
-        random_grid = random.sample(grids_with_roadsign, 1)[0]
-    grid_data = grids[grids.grid_id == random_grid][GRID_COLUMNS].reset_index(drop=True)
+    random_grid = random.sample(grids_to_sample, 1)[0]
+    while(verify_sample(incidents, random_grid, row.Date, window)):
+        random_grid = random.sample(grids_to_sample, 1)[0]
+    grid_data = grid[grid.grid_id == random_grid][GRID_COLUMNS].reset_index(drop=True)
     negatives.loc[i, GRID_COLUMNS] = grid_data.iloc[0]
 
 negatives.to_csv(NEGATIVE_SAMPLES_PATH, sep=",", encoding="utf-8", index=False)
