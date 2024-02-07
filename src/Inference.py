@@ -17,9 +17,10 @@ GRID_ENRICHED_PATH = Path('data_bomen/grid_enriched_200_new.csv')
 
 LOCATION = ('4.890439', '52.369496')
 
-FEATURE_COLS = {'trees': ['avg_height', 'avg_year',
-                          'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus',
-                          'wind_gusts_10m'],
+FEATURE_COLS = {'trees': ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus', 'Overig', 'Onbekend'],
+    # 'trees': ['avg_height', 'avg_year',
+    #                       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus',
+    #                       'wind_gusts_10m'],
     # 'trees': ['avg_height', 'avg_year', 'has_tree', 'num_trees',
     #                       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
     #                       'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
@@ -178,11 +179,11 @@ class Inference():
             for var, values in weather_vars.items():
                 grid[str(var)] = values[i]
             self.lastX = grid[FEATURE_COLS[self.model_type]]
-            # if self.model_type == 'trees':
-            #     preds = self.clf.predict(grid[FEATURE_COLS[self.model_type]])
-            # else:
-            #     preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
-            preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
+            if self.model_type == 'trees':
+                preds = self.clf.predict(grid[FEATURE_COLS[self.model_type]])
+            else:
+                preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
+            # preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
             for id_, pred in zip(grid['grid_id'], preds):
                 pred_dict[id_].append(float(pred))
                 all_preds.append(preds)

@@ -76,7 +76,7 @@ def make_dashboard():
     if 'model_fractions' not in st.session_state:
         set_model_fractions()
 
-    st.title('Brandweer Amsterdam')
+    st.title('Brandweer Amsterdam Stormschade')
     if st.session_state['prediction_type'] == PREDICTION_TYPE_WEATHER_FORECAST:
         st.markdown(f'Voorspelling van **{st.session_state["dates"][0].strftime("%Y-%m-%d %H:%M")}** tot **{st.session_state["dates"][1].strftime("%Y-%m-%d %H:%M")}**')
     elif st.session_state['prediction_type'] == PREDICTION_TYPE_CUSTOM_STORM:
@@ -91,11 +91,11 @@ def make_dashboard():
 
     @st.cache_resource
     def load_tree_model():
-        # model = Inference(model_name=pathlib.Path('xgboost_new_md20_sub50_tfr.pkl'),
-        model = Inference(model_name=pathlib.Path('TEST_xgboost_model_trees.pkl'),
+        # model = Inference(model_name=pathlib.Path('TEST_xgboost_model_trees.pkl'),
+        model = Inference(model_name=pathlib.Path('xgboost_new_md20_sub70_tfr_bc.pkl'),
                                    model_dir=pathlib.Path('../src/models/trees/'),
                                    model_type='trees',
-                                   grid_path=pathlib.Path('grid_trees_no_lines.csv'))
+                                   grid_path=pathlib.Path('grid_trees_final.csv'))
 
         return model
 
@@ -457,7 +457,7 @@ def make_dashboard():
                             _, col_submit = st.columns([14,1])
                             with col_submit:
                                 if st.form_submit_button('Submit', type='primary'):
-                                    weather_params = {'temperature_2m': [st.session_state['temperature']],
+                                    weather_params = {'apparent_temperature': [st.session_state['temperature']],
                                                     'precipitation': [st.session_state['precipitation']],
                                                     'wind_speed_10m': [st.session_state['wind_speed']],
                                                     'wind_gusts_10m': [st.session_state['wind_gusts']],
