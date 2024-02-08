@@ -551,4 +551,4 @@ def make_dashboard():
         st.session_state['get_poi_distances'] = make_poi_getter()
         distances_df = st.session_state['get_poi_distances'].grid_gdf
 
-        st.session_state['poi_distances'] = {id: distance for (id, distance) in list(zip(distances_df['id'], distances_df['summed_distance']))}
+        st.session_state['poi_distances'] = {id: distance for (id, distance) in list(zip(distances_df['id'], distances_df['mean_distance']))}

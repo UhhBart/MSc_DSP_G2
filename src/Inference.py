@@ -180,7 +180,7 @@ class Inference():
                 grid[str(var)] = values[i]
             self.lastX = grid[FEATURE_COLS[self.model_type]]
             if self.model_type == 'trees':
-                preds = self.clf.predict(grid[FEATURE_COLS[self.model_type]])
+                preds = self.clf.predict_proba(grid[FEATURE_COLS[self.model_type]])[:, 1]     # get proba for class 1
             else:
                 preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
             # preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
