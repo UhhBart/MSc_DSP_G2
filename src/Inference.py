@@ -12,65 +12,95 @@ import shap
 import matplotlib.pyplot as plt
 import xgboost as xgb
 
-MODEL_DIR = Path('models/')
-GRID_ENRICHED_PATH = Path('data_bomen/grid_enriched_200_new.csv')
+MODEL_DIR = Path("models/")
+GRID_ENRICHED_PATH = Path("data_bomen/grid_enriched_200_new.csv")
 
-LOCATION = ('4.890439', '52.369496')
+LOCATION = ("4.890439", "52.369496")
 
 FEATURE_COLS = {
-        'trees': ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus', 'Overig', 'Onbekend'],
-
-       'buildings': ['has_building', 'Gewogen Gemiddeld Bouwjaar', 'wind_gusts_10m'],
-
-       'roadsigns':  ['Gemiddelde kijkrichting', 'Gemiddelde hoogte onderkant bord',
-                      'wind_gusts_10m', 'wind_direction_10m',
-                      'Bouwwerk', 'Buispaal', 'Flespaal', 'Hekwerk', 'Lichtmast',
-                      'Mast', 'Muur', 'Overig', 'Portaal', 'Scheiding', 'VRI-Mast']
-       }
-
-MODEL_TYPE_NAMES = {
-    'trees': 'bomen',
-    'buildings': 'gebouwen',
-    'roadsigns': 'overige'
+    "trees": [
+        "avg_height",
+        "avg_year",
+        "apparent_temperature",
+        "rain",
+        "wind_speed_10m",
+        "wind_gusts_10m",
+        "num_trees",
+        "Fraxinus",
+        "Salix",
+        "Alnus",
+        "Quercus",
+        "Tilia",
+        "Acer",
+        "Populus",
+        "Betula",
+        "Prunus",
+        "Platanus",
+        "Malus",
+        "Robinia",
+        "Crataegus",
+        "Ulmus",
+        "Carpinus",
+        "Overig",
+        "Onbekend",
+    ],
+    "buildings": ["has_building", "Gewogen Gemiddeld Bouwjaar", "wind_gusts_10m"],
+    "roadsigns": [
+        "Gemiddelde kijkrichting",
+        "Gemiddelde hoogte onderkant bord",
+        "wind_gusts_10m",
+        "wind_direction_10m",
+        "Bouwwerk",
+        "Buispaal",
+        "Flespaal",
+        "Hekwerk",
+        "Lichtmast",
+        "Mast",
+        "Muur",
+        "Overig",
+        "Portaal",
+        "Scheiding",
+        "VRI-Mast",
+    ],
 }
 
+MODEL_TYPE_NAMES = {"trees": "bomen", "buildings": "gebouwen", "roadsigns": "overige"}
 
-class Inference():
+
+class Inference:
     def __init__(
         self,
         model_name,
-        model_dir = MODEL_DIR,
-        model_type = 'trees',
-        grid_path = GRID_ENRICHED_PATH,
+        model_dir=MODEL_DIR,
+        model_type="trees",
+        grid_path=GRID_ENRICHED_PATH,
     ):
         model_path = model_dir / model_name
 
         self.clf = self.load_model(model_path)
 
-        self.grid_df = pd.read_csv(grid_path, sep=',', encoding='utf-8')
+        self.grid_df = pd.read_csv(grid_path, sep=",", encoding="utf-8")
 
         self.model_type = model_type
 
         self.lastX = []
 
-    def get_predictions(
-        self, weather_params=None, api_dates=None
-    ):
+    def get_predictions(self, weather_params=None, api_dates=None):
         weather_vars = {
-            'temperature_2m': [10],
-            'relative_humidity_2m': [80],
-            'dew_point_2m': [10],
-            'apparent_temperature': [10],
-            'precipitation': [10],
-            'rain': [10],
-            'snowfall': [0],
-            'snow_depth': [0],
-            'weather_code': [63],
-            'pressure_msl': [1000],
-            'surface_pressure': [1000],
-            'wind_speed_10m': [80],
-            'wind_gusts_10m': [120],
-            'wind_direction_10m': [120],
+            "temperature_2m": [10],
+            "relative_humidity_2m": [80],
+            "dew_point_2m": [10],
+            "apparent_temperature": [10],
+            "precipitation": [10],
+            "rain": [10],
+            "snowfall": [0],
+            "snow_depth": [0],
+            "weather_code": [63],
+            "pressure_msl": [1000],
+            "surface_pressure": [1000],
+            "wind_speed_10m": [80],
+            "wind_gusts_10m": [120],
+            "wind_direction_10m": [120],
         }
         if weather_params:
             hours_to_predict = len(list(weather_params.values())[0])
@@ -80,7 +110,9 @@ class Inference():
             for name, var in weather_vars.items():
                 if len(var) < hours_to_predict:
                     # Extend the list by repeating its last value
-                    last_value = var[-1] if len(var) > 0 else 0  # Assuming a default value of 0 if the list is empty
+                    last_value = (
+                        var[-1] if len(var) > 0 else 0
+                    )  # Assuming a default value of 0 if the list is empty
                     extension = [last_value] * (hours_to_predict - len(var))
                     weather_vars[name] = var + extension
                 elif len(var) > hours_to_predict:
@@ -95,55 +127,53 @@ class Inference():
 
                 api_dates = (rounded_down, rounded_up)
 
-            formatted_dates = (api_dates[0].strftime('%Y-%m-%dT%H:%M'), api_dates[1].strftime('%Y-%m-%dT%H:%M'))
+            formatted_dates = (
+                api_dates[0].strftime("%Y-%m-%dT%H:%M"),
+                api_dates[1].strftime("%Y-%m-%dT%H:%M"),
+            )
 
             response = self.request_weather(weather_vars=weather_vars, api_dates=formatted_dates)
             weather_vars = self.extract_weather_vars(response=response, weather_vars=weather_vars)
 
             hours_to_predict = int((api_dates[1] - api_dates[0]).total_seconds() / 3600)
 
-        pred_dict = self.make_prediction(weather_vars=weather_vars, hours_to_predict=hours_to_predict)
+        pred_dict = self.make_prediction(
+            weather_vars=weather_vars, hours_to_predict=hours_to_predict
+        )
 
         return pred_dict
 
     def load_model(self, model_path):
         # model_path = MODEL_DIR / model_name
-        with open(model_path, 'rb') as f:
+        with open(model_path, "rb") as f:
             clf = pickle.load(f)
         return clf
-
 
     def request_weather(self, weather_vars, api_dates):
         # connect to API
         try:
-            cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
-            retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-            openmeteo = openmeteo_requests.Client(session = retry_session)
+            cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
+            retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+            openmeteo = openmeteo_requests.Client(session=retry_session)
         except:
-            print('API connection failed.')
+            print("API connection failed.")
 
         longitude = LOCATION[0]
         latitude = LOCATION[1]
 
-        url = 'https://api.open-meteo.com/v1/forecast'
+        url = "https://api.open-meteo.com/v1/forecast"
         params = {
-            'latitude': latitude,
-            'longitude': longitude,
-            'hourly': list(weather_vars.keys()),
-            'start_hour': api_dates[0],
-        	'end_hour': api_dates[1]
-
+            "latitude": latitude,
+            "longitude": longitude,
+            "hourly": list(weather_vars.keys()),
+            "start_hour": api_dates[0],
+            "end_hour": api_dates[1],
         }
         responses = openmeteo.weather_api(url, params=params)
 
         return responses[0]
 
-
-    def extract_weather_vars(
-        self,
-        response,
-        weather_vars
-    ):
+    def extract_weather_vars(self, response, weather_vars):
         hourly = response.Hourly()
 
         # Fetch and process the first half of the variables
@@ -152,11 +182,7 @@ class Inference():
 
         return weather_vars
 
-    def make_prediction(
-        self,
-        weather_vars,
-        hours_to_predict
-    ):
+    def make_prediction(self, weather_vars, hours_to_predict):
         self.lastX = []
         all_preds = []
         pred_dict = {}
@@ -168,12 +194,14 @@ class Inference():
             for var, values in weather_vars.items():
                 grid[str(var)] = values[i]
             self.lastX = grid[FEATURE_COLS[self.model_type]]
-            if self.model_type == 'trees':
-                preds = self.clf.predict_proba(grid[FEATURE_COLS[self.model_type]])[:, 1]     # get proba for class 1
+            if self.model_type == "trees":
+                preds = self.clf.predict_proba(grid[FEATURE_COLS[self.model_type]])[
+                    :, 1
+                ]  # get proba for class 1
             else:
                 preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
             # preds = self.clf.predict(xgb.DMatrix(grid[FEATURE_COLS[self.model_type]]))
-            for id_, pred in zip(grid['grid_id'], preds):
+            for id_, pred in zip(grid["grid_id"], preds):
                 pred_dict[id_].append(float(pred))
                 all_preds.append(preds)
 
@@ -186,25 +214,31 @@ class Inference():
         #     shap_values = self.clf.predict(self.grid_df[FEATURE_COLS[self.model_type]], pred_contribs=True)
         # else:
         #     shap_values = self.clf.predict(xgb.DMatrix(self.grid_df[FEATURE_COLS[self.model_type]], enable_categorical=True), pred_contribs=True)
-        plot = shap.summary_plot(shap_values, self.lastX, self.get_formatted_colnames(), max_display=10)
+        plot = shap.summary_plot(
+            shap_values, self.lastX, self.get_formatted_colnames(), max_display=10
+        )
         fig, ax = plt.gcf(), plt.gca()
 
-        ax.set_title(f'Feature Importance - {MODEL_TYPE_NAMES[self.model_type].capitalize()} Schade', fontsize=16)
+        ax.set_title(
+            f"Feature Importance - {MODEL_TYPE_NAMES[self.model_type].capitalize()} Schade",
+            fontsize=16,
+        )
         return (fig, ax)
 
     def get_formatted_colnames(self):
-        return [f
-                .replace('_', ' ')
-                .replace('has', 'heeft')
-                .replace('num', 'aantal')
-                .replace('avg', 'gemiddelde')
-                .replace('height', 'hoogte')
-                .replace('year', 'jaar')
-                .replace('tree', 'bomen')
-                .replace('trees', 'bomen')
-                .replace('precipitation', 'neerslag')
-                .replace('speed', 'snelheid')
-                .replace('gusts', 'stoten')
-                .replace('building', 'gebouwen')
-                .capitalize()
-                for f in FEATURE_COLS[self.model_type]]
+        return [
+            f.replace("_", " ")
+            .replace("has", "heeft")
+            .replace("num", "aantal")
+            .replace("avg", "gemiddelde")
+            .replace("height", "hoogte")
+            .replace("year", "jaar")
+            .replace("tree", "bomen")
+            .replace("trees", "bomen")
+            .replace("precipitation", "neerslag")
+            .replace("speed", "snelheid")
+            .replace("gusts", "stoten")
+            .replace("building", "gebouwen")
+            .capitalize()
+            for f in FEATURE_COLS[self.model_type]
+        ]
