@@ -152,7 +152,7 @@ class makeTreePrediction():
             for var, values in weather_vars.items():
                 grid[str(var)] = values[i]
             self.lastX = grid[FEATURE_COLS]
-            preds = clf.predict(grid[FEATURE_COLS])
+            preds = clf.predict_proba(grid[FEATURE_COLS])[:, 1]     # get proba for class 1
             for id_, pred in zip(grid['grid_id'], preds):
                 pred_dict[id_].append(int(pred))
                 all_preds.append(preds)
