@@ -17,33 +17,22 @@ GRID_ENRICHED_PATH = Path('data_bomen/grid_enriched_200_new.csv')
 
 LOCATION = ('4.890439', '52.369496')
 
-FEATURE_COLS = {'trees': ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus', 'Overig', 'Onbekend'],
-    # 'trees': ['avg_height', 'avg_year',
-    #                       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus',
-    #                       'wind_gusts_10m'],
-    # 'trees': ['avg_height', 'avg_year', 'has_tree', 'num_trees',
-    #                       'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus',
-    #                       'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus',
-    #                       'Ulmus', 'Carpinus', 'Overig', 'Onbekend', 'temperature_2m', 'relative_humidity_2m', 'dew_point_2m',
-    #                       'apparent_temperature', 'precipitation', 'rain', 'snowfall',
-    #                       'snow_depth', 'weather_code', 'pressure_msl', 'surface_pressure',
-    #                       'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m',
-    #    ],
+FEATURE_COLS = {
+        'trees': ['avg_height', 'avg_year', 'apparent_temperature', 'rain', 'wind_speed_10m', 'wind_gusts_10m', 'num_trees', 'Fraxinus', 'Salix', 'Alnus', 'Quercus', 'Tilia', 'Acer', 'Populus', 'Betula', 'Prunus', 'Platanus', 'Malus', 'Robinia', 'Crataegus', 'Ulmus', 'Carpinus', 'Overig', 'Onbekend'],
+
        'buildings': ['has_building', 'Gewogen Gemiddeld Bouwjaar', 'wind_gusts_10m'],
 
-    #    'roadsigns':  ['has_roadsign', 'Gemiddelde kijkrichting', 'Gemiddelde hoogte onderkant bord',
-    #                   'wind_gusts_10m', 'wind_direction_10m',
-    #                   'Bouwwerk', 'Buispaal', 'Flespaal', 'Hekwerk', 'Lichtmast', 'Mast',
-    #                   'Muur', 'Overig', 'Portaal', 'Scheiding', 'VRI-Mast']
        'roadsigns':  ['Gemiddelde kijkrichting', 'Gemiddelde hoogte onderkant bord',
                       'wind_gusts_10m', 'wind_direction_10m',
                       'Bouwwerk', 'Buispaal', 'Flespaal', 'Hekwerk', 'Lichtmast',
                       'Mast', 'Muur', 'Overig', 'Portaal', 'Scheiding', 'VRI-Mast']
        }
 
-MODEL_TYPE_NAMES = {'trees': 'bomen',
-                    'buildings': 'gebouwen',
-                    'roadsigns': 'overige'}
+MODEL_TYPE_NAMES = {
+    'trees': 'bomen',
+    'buildings': 'gebouwen',
+    'roadsigns': 'overige'
+}
 
 
 class Inference():

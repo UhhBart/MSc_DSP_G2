@@ -346,7 +346,7 @@ def main():
 
     grid_gdf, tree_gdf = enrich_grid_df(grid_gdf=grid_gdf, tree_gdf=tree_gdf)
 
-        # create num trees col
+    # create num trees col
     grid_gdf['num_trees'] = grid_gdf[TREE_NAMES].sum(axis=1)
 
     #convert to datetime
@@ -358,7 +358,8 @@ def main():
 
     # sample positives
     positive_samples = create_save_positives(incident_gdf=incident_gdf, tree_gdf=tree_gdf, grid_gdf=grid_gdf)
-    # sample negatives
+   
+    # sample negatives, set according to negative sampling type
     neg_sampler = NegativeSampler(has_column='has_tree', has_tree=False, random_dates=True, random_grid=True)
     negative_samples = neg_sampler.sample_negatives(incidents_weather_df, positive_samples, grid_gdf)
 
@@ -371,7 +372,7 @@ def main():
     negative_samples = weather_getter.add_weather_data()
 
     negative_samples.to_csv(negatives_path, sep=",", encoding="utf-8", index="False")
-    # positive_samples.to_csv(positives_path, sep=",", encoding="utf-8", index="False")
+    positive_samples.to_csv(positives_path, sep=",", encoding="utf-8", index="False")
 
 if __name__ == "__main__":
     main()

@@ -248,10 +248,10 @@ incidents = incidents
 positives = positive_samples
 grid = grids
 has_column = 'has_building'
-has_building =  True
-window=5
-random_dates=True, 
-random_grid=True
+has_building =  True        # False for negative 2 sampling, True for negative 1
+window=5                    # Days on either side of incident
+random_dates=True, # True for negative 3 sampling
+random_grid=True    # True for negative 3 sampling
 
 if random_grid:
     grids_to_sample = list(grid.grid_id.values)
